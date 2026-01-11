@@ -54,6 +54,7 @@ class LearningHumanPTAgent:
 
     def remember(self, state, action, reward, next_state, done):
         """Store experience with PT-transformed reward"""
+        # Come back to this: still not sure that we should be storing values and not outcomes
         pt_reward = self.transform_reward(reward)
         self.memory.append((state, action, pt_reward, next_state, done))
 
@@ -73,6 +74,7 @@ class LearningHumanPTAgent:
         if len(self.memory) < self.batch_size:
             return
 
+        # Is random correct here?
         batch = random.sample(self.memory, self.batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
 
