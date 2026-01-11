@@ -1,3 +1,5 @@
+import numpy as np
+
 class RepeatedGameEnv:
     """Environment for repeated 2x2 games"""
 

@@ -1,3 +1,5 @@
+import numpy as np
+
 class ProspectTheory:
     """Complete PT implementation for game analysis"""
 
