@@ -55,18 +55,13 @@ class LearningHumanPTAgent:
         self.raw_rewards = []
         self.pt_rewards = []
 
+    # Note sure that we need this
     def transform_reward(self, reward):
         """Transform raw reward through PT value function"""
         pt_reward = self.pt.value_function(reward - self.pt.r)
         self.raw_rewards.append(reward)
         self.pt_rewards.append(pt_reward)
         return pt_reward
-
-    def remember(self, state, action, opp_action, reward, next_state, done):
-        """Store experience with PT-transformed reward"""
-        # Come back to this: still not sure that we should be storing values and not outcomes
-        pt_reward = self.transform_reward(reward)
-        self.memory.append((state, action, opp_action, pt_reward, next_state, done))
 
     ###### DOUBLE CHECK THE INPUT TO THE STATE ARGUMENT, NEED A NUMBER TO ACCOUNT FOR INDEXING ###
     def act(self, state, training=True):
@@ -75,11 +70,12 @@ class LearningHumanPTAgent:
 
         assert torch.isclose(probabilities.sum(), torch.tensor(1.0), atol=1e-5), \
         "Beliefs don't sum to 1"
-        # Epsilon exploration
+
+        # Epsilon exploration (lines 16-17 in alg 1)
         if training and random.random() < self.epsilon:
             return random.randrange(self.action_size)
 
-        # Pathology detection
+        # Pathology detection (lines 14, 18, 19 in alg 1)
         action_values = torch.zeros(self.action_size)
         ## Calculate V for each state, joint action tuple
         for action in range(self.action_size):
@@ -110,61 +106,7 @@ class LearningHumanPTAgent:
             action = torch.multinomial(action_probs, 1).item()
             return action
         
-        # Optimal Action
+        # Optimal Action (lins 20, 21 in alg 1)
         else:
             return int(optimal_action.item())
-             
-        
-  
-
-
-
-    def replay(self):
-        """Train on experiences"""
-        if len(self.memory) < self.batch_size:
-            return
-
-        # Is random correct here?
-        batch = random.sample(self.memory, self.batch_size)
-        states, actions, rewards, next_states, dones = zip(*batch)
-
-        states = torch.FloatTensor(states)
-        actions = torch.LongTensor(actions).unsqueeze(1)
-        rewards = torch.FloatTensor(rewards)
-        next_states = torch.FloatTensor(next_states)
-        dones = torch.FloatTensor(dones)
-
-        # Current Q values
-        current_q = self.q_net(states).gather(1, actions).squeeze()
-
-        # Next Q values
-        with torch.no_grad():
-            next_q = self.q_net(next_states).max(1)[0]
-            target_q = rewards + (1 - dones) * self.gamma * next_q
-
-        # Train
-        loss = self.criterion(current_q, target_q)
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
-
-        # Decay epsilon
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
-    def update(self, my_action, opponent_action, reward=None):
-        """Update agent (for compatibility)"""
-        pass
-
-    def get_pt_stats(self):
-        """Get statistics about PT transformation"""
-        if not self.raw_rewards:
-            return {"mean_raw": 0, "mean_pt": 0, "std_raw": 0, "std_pt": 0}
-
-        return {
-            "mean_raw": np.mean(self.raw_rewards[-100:]),
-            "mean_pt": np.mean(self.pt_rewards[-100:]),
-            "std_raw": np.std(self.raw_rewards[-100:]),
-            "std_pt": np.std(self.pt_rewards[-100:])
-        }
 
