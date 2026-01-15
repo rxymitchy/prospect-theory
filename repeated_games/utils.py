@@ -37,10 +37,10 @@ def get_all_games():
         },
         'Chicken': {
             'payoffs': np.array([
-                [[0, 0], [-1, 1]],   # Straight/Straight, Straight/Swerve
-                [[1, -1], [-10, -10]] # Swerve/Straight, Swerve/Swerve
+                [[0, 0], [-1, 1]],   # Swerve/Swerve, Swerve/Straight
+                [[1, -1], [-10, -10]] # Straight/Swerve, Straight/Straight
             ]),
             'description': 'Chicken Game',
-            'actions': ['Straight', 'Swerve']
+            'actions': ['Swerve', 'Straight']
         }
     }

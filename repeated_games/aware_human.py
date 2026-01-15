@@ -9,32 +9,45 @@ class AwareHumanPTAgent:
     Knows the game structure and uses PT to compute best responses
     """
 
-    def __init__(self, payoff_matrix, pt_params, action_size, opponent_action_size, state_size, agent_id=0):
+    def __init__(self, payoff_matrix, pt_params, action_size, state_size, agent_id=0, opp_params=None):
         self.payoff_matrix = payoff_matrix
         self.pt = ProspectTheory(**pt_params)
         self.agent_id = agent_id  # 0 for row player, 1 for column player
-        self.opponent_action = None
         self.learning_rate = 0.1
         self.ref_point = 0 # amenable to changes if we want to test different ref points
         self.tau = 0.1 # Also amenable
         self.temperature = 1.3
 
         self.action_size = action_size
-        self.opp_action_size = opponent_action_size
+        self.opp_action_size = opp_params['opponent_action_size']
         self.state_size = state_size
 
-        # Compute PT value matrix once
-        self.pt_matrix = self._compute_pt_matrix()
+        self.values = self.build_values_matrix(self.payoff_matrix) 
 
-    def _compute_pt_matrix(self):
-        """Compute PT values for all outcomes"""
-        pt_matrix = np.zeros_like(self.payoff_matrix, dtype=float)
+        self.opponent_type = opp_params['opponent_type']
+
+        if self.opponent_type == "AI":
+            # Record value table
+            self.opp_q_values = opp_params['q_values']
+            # epsilon greedy formula
+            self.opp_epsilon = opp_params['epsilon']
+        elif self.opponent_type == "LH":
+            # Record value table
+            self.opp_q_values = opp_params['q_values']
+            # Record epsilon
+            self.opp_epsilon = opp_params['epsilon']
+            # Record beliefs 
+            self.opp_beliefs = opp_params['beliefs']
+
+    def build_values_matrix(self, matrix):
+        values = np.zeros((self.action_size, self.opp_action_size))
+
         for i in range(self.action_size):
             for j in range(self.opp_action_size):
-                for player in [0, 1]:
-                    payoff = self.payoff_matrix[i, j, player]
-                    pt_matrix[i, j, player] = self.pt.value_function(payoff - self.ref_point)
-        return pt_matrix
+                values[i, j] = matrix[i, j, self.agent_id]
+
+        return values
+                
 
     def retrieve_opponent_strategy(self, opponent_action=None, opponent_probs=None, opponent_policy=None):
         """ Its unclear right now what the best modeling choice is for the aware human. We have several options.
@@ -89,6 +102,40 @@ class AwareHumanPTAgent:
             action = optimal_action
 
         return action
+
+    def calculate_opponent_policy(self, state):
+        """Taking in the opponent's decision parameters, returns a 
+           CPT transformation of self.values based on likelihood that 
+           the opponent takes action a or b."""
+        # AI agent
+        if self.opponent_type == "AI":
+            probs = np.zeros_like(self.opp_q_values[state])
+
+            # Get idx of optimal opp action
+            optimal_action_idx = np.argmax(self.opp_q_values[state])
+
+            # 1 - opp_epsilon/opp_action_size because the highest value action :=
+            # (p(argmax) = 1 - opp_epsilon) + (p(random) = opp_epsilon/opp_action_size) 
+            probs[optimal_action_idx] = 1 - self.opp_epsilon + self.opp_epsilon / self.opp_action_size
+
+            for idx in range(len(probs)):
+                if idx == optimal_action_idx:
+                    continue
+                else:
+                    probs[idx] = self.opp_epsilon/self.opp_action_size
+                    
+            # Now use probability of opponent actions to redefine our payoffs:
+            transformed_payoffs = np.zeros(self.action_size)
+            # Form a prospect for each (action, opp_action_prob)
+            for a_i in range(self.action_size):
+                if self.agent_id == 0: #row player
+                     transformed_value = self.pt.expected_pt_value(self.values[a_i, :], probs)
+                     transformed_payoffs[a_i] = transformed_value
+                else: # column player
+                     transformed_value = self.pt.expected_pt_value(self.values[:, a_i], probs)
+                     transformed_payoffs[a_i] = transformed_value
+            
+            return transformed_rewards
 
     def act(self):
         """Choose action based on PT analysis"""
