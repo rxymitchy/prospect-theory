@@ -4,7 +4,7 @@ import random
 class AIAgent:
     """Standard RL agent without PT"""
 
-    def __init__(self, state_size, action_size, pt_params, agent_id=0):
+    def __init__(self, state_size, action_size, agent_id=0):
         self.state_size = state_size
         self.action_size = action_size
         self.opp_action_size = opp_action_size

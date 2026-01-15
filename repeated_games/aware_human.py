@@ -90,7 +90,7 @@ class AwareHumanPTAgent:
 
         return action
 
-    def act(self, training=True):
+    def act(self):
         """Choose action based on PT analysis"""
         # Get opp strategy
         if opp_action is None:

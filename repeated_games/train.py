@@ -21,8 +21,6 @@ def train_agents(agent1, agent2, env, episodes=500,
         'strategies2': []
     }
 
-    exploration_rate = 0.3
-
     for episode in range(episodes):
         state = env.reset()
         episode_rewards1 = 0
@@ -44,15 +42,17 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent1.belief_update(state, action2)
                 agent1.q_value_update(state, next_state, action1, action2, reward1)
 
-            if isinstance(agent1, AIAgent):
+            elif isinstance(agent1, AIAgent):
                 # Update code here
+                agent1.update(state, action1, next_state, reward1)
               
             if isinstance(agent2, LearningHumanPTAgent):
                 agent2.belief_update(state, action1)
                 agent2.q_value_update(state, next_state, action2, action1, reward2)
 
-            if isinstance(agent2, AIAgent):
+            elif isinstance(agent2, AIAgent):
                 # Update code here
+                agent2.update(state, action2, next_state, reward2)
 
             # Store results
             episode_rewards1 += reward1
@@ -66,8 +66,9 @@ def train_agents(agent1, agent2, env, episodes=500,
                 break
 
         # Store episode results
-        avg_reward1 = episode_rewards1 / env.horizon
-        avg_reward2 = episode_rewards2 / env.horizon
+        steps = len(episode_actions1)
+        avg_reward1 = episode_rewards1 / steps
+        avg_reward2 = episode_rewards2 / steps
 
         results['rewards1'].append(episode_rewards1)
         results['rewards2'].append(episode_rewards2)
@@ -77,11 +78,11 @@ def train_agents(agent1, agent2, env, episodes=500,
         results['avg_rewards2'].append(avg_reward2)
 
         # Decay exploration
-        if isinstance(agent1, (LearningHumanPTAgent, AIAgent):
-            agent1.epsilon *= exploration_decay
+        if isinstance(agent1, (LearningHumanPTAgent, AIAgent)):
+            agent1.epsilon = max(agent1.epsilon * exploration_decay, agent1.epsilon_min)
 
-        if isinstance(agent1, (LearningHumanPTAgent, AIAgent):
-            agent2.epsilon *= exploration_decay
+        if isinstance(agent2, (LearningHumanPTAgent, AIAgent)):
+            agent2.epsilon = max(agent2.epsilon * exploration_decay, agent2.epsilon_min)
 
         # Progress update
         if verbose and (episode + 1) % 100 == 0:
@@ -285,14 +286,14 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         elif agent1_type == 'Learning_PT':
             agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0)
         else:  # AI
-            agent1 = AIAgent(env.state_size, 2, agent_id=0)
+            agent1 = AIAgent(env.state_size, action_size, agent_id=0)
 
         if agent2_type == 'Aware_PT':
             agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, action_size, env.state_size, agent_id=1)
         elif agent2_type == 'Learning_PT':
             agent2 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=1)
         else:  # AI
-            agent2 = AIAgent(env.state_size, 2, agent_id=1)
+            agent2 = AIAgent(env.state_size, action_size, agent_id=1)
 
         # Train the matchup
         print(f"Training {episodes} episodes...")
