@@ -38,6 +38,9 @@ class AwareHumanPTAgent:
             self.opp_epsilon = opp_params['epsilon']
             # Record beliefs 
             self.opp_beliefs = opp_params['beliefs']
+            # Decision parameters:
+            self.opp_tau = opp_params['tau']
+            self.opp_temp = opp_params['temp']
 
     def build_values_matrix(self, matrix):
         values = np.zeros((self.action_size, self.opp_action_size))
@@ -47,61 +50,6 @@ class AwareHumanPTAgent:
                 values[i, j] = matrix[i, j, self.agent_id]
 
         return values
-                
-
-    def retrieve_opponent_strategy(self, opponent_action=None, opponent_probs=None, opponent_policy=None):
-        """ Its unclear right now what the best modeling choice is for the aware human. We have several options.
-            1) directly pass the opponent's action, 2) directly pass the opponent's mixed strategy, 3) directly 
-            pass the opponent's policy. Each have their own modeling tradeoffs: direct action is simple, effective, 
-            and easy to implement, but what humans in the world KNOW what the action they will face will be? Direct 
-            probabilities is a bit like beliefs that have epistemic grounding, which is somewhat similar to LH and its 
-            not completely clear where we would generate these mixed strategies (from the literature, sure, but I suspect
-            EU will be easier than PT for this task). Direct policy probably makes more sense, but it would require 
-            adaptation for each agent pairing and so its a more difficult implementation with more shuffling. Here, for now,
-            I'm going to implement direct action, but please be aware of the alternatives. """ 
-
-        # modeling strategy
-        setting = "direct_action"
-        if setting == "direct_action" and opponent_action is not None:
-            self.opponent_action = opponent_action
-
-    def compute_best_response(self, opp_action):
-        """
-        Compute PT best response to a known opponent's action
-        NOTE (1/14/26): I rewrote this with the assumption that the opponent's action will
-        be directly given to the agent, so I removed uncertainty and full pt value calculation
-        """
-        # Expected PT values for each of our actions
-        expected_values = []
-
-        for my_action in range(self.action_size):
-            # Get PT value for this outcome
-            if self.agent_id == 0:  # Row player
-                pt_value = self.pt_matrix[my_action, opp_action, 0]
-            else:  # Column player
-                pt_value = self.pt_matrix[opp_action, my_action, 1]
-
-            expected_values.append(pt_value)
-
-        # Make expected values an np array for operations
-        expected_values = np.array(expected_values)
-
-        # Argmax response based on PT values
-        optimal_action = np.argmax(expected_values)
-        suboptimal_actions = expected_values[:]
-        suboptimal_actions[optimal_action] = -np.inf
-        second_best = np.argmax(suboptimal_actions)
-
-        # No clear optimum detection
-        gap = expected_values[optimal_action] - expected_values[second_best]
-        if gap < self.tau:
-            logits = expected_values - expected_values.max()
-            probs = softmax(logits / self.temperature, axis=0)
-            action = np.random.choice(self.action_size, p=probs)
-        else:
-            action = optimal_action
-
-        return action
 
     def calculate_opponent_policy(self, state):
         """Taking in the opponent's decision parameters, returns a 
@@ -109,7 +57,7 @@ class AwareHumanPTAgent:
            the opponent takes action a or b."""
         # AI agent
         if self.opponent_type == "AI":
-            probs = np.zeros_like(self.opp_q_values[state])
+            probs = np.zeros(self.opp_action_size)
 
             # Get idx of optimal opp action
             optimal_action_idx = np.argmax(self.opp_q_values[state])
@@ -123,30 +71,104 @@ class AwareHumanPTAgent:
                     continue
                 else:
                     probs[idx] = self.opp_epsilon/self.opp_action_size
-                    
-            # Now use probability of opponent actions to redefine our payoffs:
-            transformed_payoffs = np.zeros(self.action_size)
-            # Form a prospect for each (action, opp_action_prob)
-            for a_i in range(self.action_size):
-                if self.agent_id == 0: #row player
-                     transformed_value = self.pt.expected_pt_value(self.values[a_i, :], probs)
-                     transformed_payoffs[a_i] = transformed_value
-                else: # column player
-                     transformed_value = self.pt.expected_pt_value(self.values[:, a_i], probs)
-                     transformed_payoffs[a_i] = transformed_value
+
+        elif self.opponent_type == "LH":
+            # Action Probabilities Initialize
+            probs = np.zeros(self.opp_action_size)
+            # CPT Transformation between beliefs and q values
+            action_values = np.zeros(self.opp_action_size)
+            belief_probs = self.opp_beliefs[state]
+
+            assert np.isclose(belief_probs.sum(), 1.0, atol=1e-5), \
+            "Beliefs don't sum to 1"
             
-            return transformed_rewards
+            # Compute LH policy inside model. The point is that we need to know if the gap 
+            # (pathology detection) exists 
+            ################# BEGIN LH POLICY CALCULATION ###################
+            for action in range(self.opp_action_size):
+                opp_values = self.opp_q_values[state][action]
+                action_cpt_value = self.pt.expected_pt_value(opp_values, belief_probs)
+                action_values[action] = action_cpt_value
 
-    def act(self):
-        """Choose action based on PT analysis"""
-        # Get opp strategy
-        if opp_action is None:
-            raise ValueError("opponent_action not set; call retrieve_opponent_strategy first.")
+            optimal_action = np.argmax(action_values)
+            suboptimal_action_values = action_values[:]
+            suboptimal_action_values[optimal_action] = -np.inf
 
-        opp_action = self.opponent_action
+            second_best_action = np.argmax(suboptimal_action_values)
+
+            gap = action_values[optimal_action] - action_values[second_best_action]
+            soft_probs = None
+            if gap < self.opp_tau:
+                vals = action_values - action_values.max()
+                soft_probs = softmax(vals / self.opp_temp, axis=0)
+            ############### END LH POLICY CALCULATION ####################
+
+            # Compute and store action probs
+            # Use opp action probs to make AH action decision.
+            if soft_probs is not None:
+                # The gap is triggered, so we use the soft probs
+                # HOWEVER, the epsilon greedy logic occurs before this step,
+                # SO we need to account for the likelihood that epsilon triggers
+                # Formally: p(epsilon) + p(not epsilon | softmax)
+                # IMPORTANTLY, because we know that softmax is triggered because
+                # we calculated the policy directly, this is complete. 
+                # sum(uniform) = 1 and sum(soft_probs) = 1, so the epsilon scaling still results in 1. 
+                uniform = np.ones(self.opp_action_size) / self.opp_action_size
+                probs = self.opp_epsilon * uniform + (1 - self.opp_epsilon) * soft_probs
+                assert np.isclose(probs.sum(), 1.0, atol=1e-5), \
+                "Probs don't sum to 1"
+            else:
+                probs[optimal_action] = 1 - self.opp_epsilon + self.opp_epsilon / self.opp_action_size
+                for idx in range(self.opp_action_size):
+                    if idx == optimal_action: 
+                        continue
+                    else:
+                        probs[idx] = self.opp_epsilon / self.opp_action_size 
+
+        return probs
+ 
+    def cpt_transform(self, probs):
+        """
+            Input: Opponent strategy calculated in calculate_opponent_policy
+            Output: CPT transformation where a prospect is P(Payoff, opp_strat)
+        """
+        # Now use probability of opponent actions to redefine our (AH) payoffs:
+        transformed_payoffs = np.zeros(self.action_size)
+        # Form a prospect for each (action, opp_action_prob)
+        for a_i in range(self.action_size):
+            if self.agent_id == 0: #row player
+                transformed_value = self.pt.expected_pt_value(self.values[a_i, :], probs)
+                transformed_payoffs[a_i] = transformed_value
+            else: # column player
+                transformed_value = self.pt.expected_pt_value(self.values[:, a_i], probs)
+                transformed_payoffs[a_i] = transformed_value
+    
+        return transformed_payoffs
+
+
+    def act(self, state):
+        """
+           Calculate opponent policy, CPT transform own values with opponent action probs, 
+           pathology detection or argmax (no exploration)
+        """
+        opp_strat = self.calculate_opponent_policy(state)
+        transformed_payoffs = self.cpt_transform(opp_strat)
 
         # Compute optimal action
-        action = self.compute_best_response(opp_action)
+        optimal_action = np.argmax(transformed_payoffs)
+        suboptimal_actions = transformed_payoffs[:]
+        suboptimal_actions[optimal_action] = -np.inf
+        second_best_action = np.argmax(suboptimal_actions)
+
+        gap = transformed_payoffs[optimal_action] - transformed_payoffs[second_best_action]
+
+        if gap < self.tau:
+            vals = transformed_payoffs - transformed_payoffs.max()
+            probs = softmax(vals / self.temperature, axis=0)
+            action = np.random.choice(self.action_size, p=probs)
+
+        else:
+            action = optimal_action
 
         return action
 
