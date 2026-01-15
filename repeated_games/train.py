@@ -5,7 +5,7 @@ from .ai_agent import AIAgent
 
 
 def train_agents(agent1, agent2, env, episodes=500,
-                 exploration_decay=0.99, verbose=True):
+                 exploration_decay=0.995, verbose=True):
     """
     Train two agents against each other
     """
@@ -30,39 +30,29 @@ def train_agents(agent1, agent2, env, episodes=500,
         episode_actions1 = []
         episode_actions2 = []
 
-        # Get initial strategies (for aware PT agents)
-        if hasattr(agent1, 'get_strategy'):
-            results['strategies1'].append(agent1.get_strategy())
-        if hasattr(agent2, 'get_strategy'):
-            results['strategies2'].append(agent2.get_strategy())
-
         for _ in range(env.horizon):
             # Agent 1 chooses action
-            if isinstance(agent1, AwareHumanPTAgent):
-                action1 = agent1.act(training=True, exploration_rate=exploration_rate)
-            else:
-                action1 = agent1.act(state, training=True)
+            action1 = agent1.act(state, training=True)
 
             # Agent 2 chooses action
-            if isinstance(agent2, AwareHumanPTAgent):
-                action2 = agent2.act(training=True, exploration_rate=exploration_rate)
-            else:
-                action2 = agent2.act(state, training=True)
+            action2 = agent2.act(state, training=True)
 
             # Execute step
             next_state, reward1, reward2, done, _ = env.step(action1, action2)
 
-            # Store experiences for RL agents
-            if isinstance(agent1, (LearningHumanPTAgent, AIAgent)):
-                agent1.remember(state.copy(), action1, reward1, next_state.copy(), done)
-            if isinstance(agent2, (LearningHumanPTAgent, AIAgent)):
-                agent2.remember(state.copy(), action2, reward2, next_state.copy(), done)
+            if isinstance(agent1, LearningHumanPTAgent):
+                agent1.belief_update(state, action2)
+                agent1.q_value_update(state, next_state, action1, action2, reward1)
 
-            # Update aware PT agents
-            if isinstance(agent1, AwareHumanPTAgent):
-                agent1.update(action1, action2, reward1)
-            if isinstance(agent2, AwareHumanPTAgent):
-                agent2.update(action2, action1, reward2)
+            if isinstance(agent1, AIAgent):
+                # Update code here
+              
+            if isinstance(agent2, LearningHumanPTAgent):
+                agent2.belief_update(state, action1)
+                agent2.q_value_update(state, next_state, action2, action1, reward2)
+
+            if isinstance(agent2, AIAgent):
+                # Update code here
 
             # Store results
             episode_rewards1 += reward1
@@ -74,12 +64,6 @@ def train_agents(agent1, agent2, env, episodes=500,
 
             if done:
                 break
-
-        # Train RL agents
-        if isinstance(agent1, (LearningHumanPTAgent, AIAgent)):
-            agent1.replay()
-        if isinstance(agent2, (LearningHumanPTAgent, AIAgent)):
-            agent2.replay()
 
         # Store episode results
         avg_reward1 = episode_rewards1 / env.horizon
@@ -93,7 +77,11 @@ def train_agents(agent1, agent2, env, episodes=500,
         results['avg_rewards2'].append(avg_reward2)
 
         # Decay exploration
-        exploration_rate *= exploration_decay
+        if isinstance(agent1, (LearningHumanPTAgent, AIAgent):
+            agent1.epsilon *= exploration_decay
+
+        if isinstance(agent1, (LearningHumanPTAgent, AIAgent):
+            agent2.epsilon *= exploration_decay
 
         # Progress update
         if verbose and (episode + 1) % 100 == 0:
@@ -273,6 +261,8 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         ('Aware_PT', 'AI'),
         ('Learning_PT', 'AI'),
         ('Aware_PT', 'Learning_PT'),
+        ('Aware_PT', 'Aware_PT'),
+        ('Learning_PT', 'Learning_PT'),
         ('AI', 'AI')  # Baseline
     ]
 
@@ -287,17 +277,20 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=2)
 
         # Create agents based on type
+        ## 2x2 games only
+        action_size = 2
+        state_size = 1
         if agent1_type == 'Aware_PT':
-            agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, agent_id=0)
+            agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, action_size, env.state_size, agent_id=0)
         elif agent1_type == 'Learning_PT':
-            agent1 = LearningHumanPTAgent(env.state_size, 2, pt_params, agent_id=0)
+            agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0)
         else:  # AI
             agent1 = AIAgent(env.state_size, 2, agent_id=0)
 
         if agent2_type == 'Aware_PT':
-            agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, agent_id=1)
+            agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, action_size, env.state_size, agent_id=1)
         elif agent2_type == 'Learning_PT':
-            agent2 = LearningHumanPTAgent(env.state_size, 2, pt_params, agent_id=1)
+            agent2 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=1)
         else:  # AI
             agent2 = AIAgent(env.state_size, 2, agent_id=1)
 
