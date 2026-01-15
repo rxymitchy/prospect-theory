@@ -1,6 +1,4 @@
 import torch
-import torch.nn as nn
-import torch.optim as optim
 from .ProspectTheory import ProspectTheory
 import numpy as np
 import random
@@ -62,6 +60,7 @@ class LearningHumanPTAgent:
 
     ###### DOUBLE CHECK THE INPUT TO THE STATE ARGUMENT, NEED A NUMBER TO ACCOUNT FOR INDEXING ###
     def act(self, state, training=True):
+        # I still need to figure out what state is
         """Choose action using epsilon-greedy"""
         state_tensor = torch.FloatTensor(state).unsqueeze(0) # CCOME BACK TO THIS VARIABLE
 
@@ -81,7 +80,7 @@ class LearningHumanPTAgent:
         second_best_action = non_optimal_actions.max()
 
         ## Check for pathology:
-        if abs(action_values[optimal_action] - second_best_action) < self.tau:
+        if action_values[optimal_action] - second_best_action < self.tau:
             ##Softmax
             ## Normalize 
             vals = action_values - action_values.max()

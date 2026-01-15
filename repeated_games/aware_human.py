@@ -1,7 +1,7 @@
 from .ProspectTheory import ProspectTheory
 import numpy as np
 import random
-import scipy.special import softmax
+from scipy.special import softmax
 
 class AwareHumanPTAgent:
     """
@@ -9,11 +9,11 @@ class AwareHumanPTAgent:
     Knows the game structure and uses PT to compute best responses
     """
 
-    def __init__(self, payoff_matrix, pt_params, agent_id=0, action_size, opponent_action_size, state_size):
+    def __init__(self, payoff_matrix, pt_params, action_size, opponent_action_size, state_size, agent_id=0):
         self.payoff_matrix = payoff_matrix
         self.pt = ProspectTheory(**pt_params)
         self.agent_id = agent_id  # 0 for row player, 1 for column player
-        self.opponent_strategy = None
+        self.opponent_action = None
         self.learning_rate = 0.1
         self.ref_point = 0 # amenable to changes if we want to test different ref points
         self.tau = 0.1 # Also amenable
@@ -28,7 +28,7 @@ class AwareHumanPTAgent:
 
     def _compute_pt_matrix(self):
         """Compute PT values for all outcomes"""
-        pt_matrix = np.zeros_like(self.payoff_matrix)
+        pt_matrix = np.zeros_like(self.payoff_matrix, dtype=float)
         for i in range(self.action_size):
             for j in range(self.opp_action_size):
                 for player in [0, 1]:
@@ -49,8 +49,8 @@ class AwareHumanPTAgent:
 
         # modeling strategy
         setting = "direct_action"
-        if setting == "direct_action" and opponent_action:
-            self.opponent_strategy = opponent_action
+        if setting == "direct_action" and opponent_action is not None:
+            self.opponent_action = opponent_action
 
     def compute_best_response(self, opp_action):
         """
@@ -92,11 +92,14 @@ class AwareHumanPTAgent:
 
     def act(self, training=True):
         """Choose action based on PT analysis"""
-        # Estimate opponent strategy
-        opp_strat = self.opponent_strategy
+        # Get opp strategy
+        if opp_action is None:
+            raise ValueError("opponent_action not set; call retrieve_opponent_strategy first.")
 
-        # Compute optimal probability for action 0
-        action = self.compute_best_response(opp_strat)
+        opp_action = self.opponent_action
+
+        # Compute optimal action
+        action = self.compute_best_response(opp_action)
 
         return action
 
