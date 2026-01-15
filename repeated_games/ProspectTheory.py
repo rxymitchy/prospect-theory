@@ -103,6 +103,7 @@ class ProspectTheory:
         return float(np.sum(pi * v_x))
 
     def expected_pt_value(self, outcomes, probabilities):
+        outcomes, probabilities = np.array(outcomes), np.array(probabilities,dtype=float)
         return float(self.cpt_gains(outcomes, probabilities) + self.cpt_losses(outcomes, probabilities))
 
 
