@@ -24,7 +24,10 @@ class LearningHumanPTAgent:
 
         # Initialize belief and reference point lambda parameters (subject to tuning)
         self.lam_b = 0.95
-        self.lab_r = 0.99
+        self.lam_r = 0.99
+
+        # Set reference point update mode:
+        self.ref_update_mode = "EMA" # Alternate options: fixed, Q^{EU}
        
         # Add an entry for each state populated with uniform probabilities over opponent action set size
         # And initialize q values
@@ -80,7 +83,7 @@ class LearningHumanPTAgent:
 
         ## Check for pathology:
         if gap < self.tau:
-            #print("[Debug] Softmax activated")
+            print("[Debug LH] Softmax activated")
             ##Softmax
             ## Normalize 
             vals = action_values - action_values.max()
@@ -112,10 +115,11 @@ class LearningHumanPTAgent:
     def belief_update(self, state, opp_action):
         one_hot = torch.zeros(self.opp_action_size)
         one_hot[opp_action] = 1
-        self.beliefs[state] = self.lam * self.beliefs[state] + (1 - self.lam) * one_hot
+        self.beliefs[state] = self.lam_b * self.beliefs[state] + (1 - self.lam_b) * one_hot
 
     def ref_update(self, payoff):
-        self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
+        if self.ref_update_mode == "EMA":
+            self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
 
     def q_value_update(self, state, next_state, action, opp_action, reward):
         if not torch.is_tensor(reward):

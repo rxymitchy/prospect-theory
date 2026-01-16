@@ -31,6 +31,8 @@ def train_agents(agent1, agent2, env, episodes=500,
         episode_rewards2 = 0
         episode_actions1 = []
         episode_actions2 = []
+        episode_q_values1 = dict()
+        episode_q_values2 = dict()
 
         for _ in range(env.horizon):
             # Agent 1 chooses action
@@ -46,6 +48,8 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent1.belief_update(state, action2)
                 agent1.ref_update(reward1)
                 agent1.q_value_update(state, next_state, action1, action2, reward1)
+                if state not in episode_q_values1.keys():
+                    episode_q_values_1[state] = []
 
             elif isinstance(agent1, AIAgent):
                 # Update code here
@@ -116,7 +120,6 @@ def train_agents(agent1, agent2, env, episodes=500,
         if isinstance(agent2, AwareHumanPTAgent):
             if not isinstance(agent1, AwareHumanPTAgent):
                 agent2.opp_epsilon = agent1.epsilon
- 
 
         # Progress update
         if verbose and (episode + 1) % 100 == 0:
@@ -186,14 +189,6 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     # 4. Strategy evolution (for aware PT)
     ax4 = plt.subplot(2, 3, 4)
-    if 'strategies1' in results and results['strategies1']:
-        ax4.plot(results['strategies1'], label=f'{agent1_type} strategy', linewidth=2)
-        ax4.set_xlabel('Episode')
-        ax4.set_ylabel('Probability of Action 0')
-        ax4.set_title('Strategy Evolution')
-        ax4.legend()
-        ax4.grid(True, alpha=0.3)
-        ax4.set_ylim([0, 1])
 
     # 5. Cumulative rewards
     ax5 = plt.subplot(2, 3, 5)

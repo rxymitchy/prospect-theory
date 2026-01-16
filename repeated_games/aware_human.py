@@ -169,7 +169,7 @@ class AwareHumanPTAgent:
         gap = transformed_payoffs[optimal_action] - transformed_payoffs[second_best_action]
 
         if gap < self.tau:
-            print("[Debug] Softmax activated")
+            print("[Debug AH] Softmax activated")
             vals = transformed_payoffs - transformed_payoffs.max()
             probs = softmax(vals / self.temperature, axis=0)
             action = np.random.choice(self.action_size, p=probs)

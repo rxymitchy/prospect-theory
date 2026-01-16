@@ -139,7 +139,7 @@ def interactive_experiment():
             print("\nRunning summary comparison across all games...")
 
             summary_data = []
-            test_games = ['PrisonersDilemma', 'BattleOfSexes', 'StagHunt', 'Chicken']
+            test_games = ['PrisonersDilemma', 'MatchingPennies', 'BattleOfSexes', 'StagHunt', 'Chicken']
 
             for game_name in test_games:
                 print(f"\nAnalyzing {game_name}...")
