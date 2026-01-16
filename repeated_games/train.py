@@ -2,6 +2,10 @@ import matplotlib.pyplot as plt
 from .aware_human import AwareHumanPTAgent 
 from .learning_human import LearningHumanPTAgent
 from .ai_agent import AIAgent
+from .game_env import RepeatedGameEnv 
+from .utils import get_all_games
+import numpy as np
+import pandas as pd
 
 
 def train_agents(agent1, agent2, env, episodes=500,
@@ -45,7 +49,7 @@ def train_agents(agent1, agent2, env, episodes=500,
             elif isinstance(agent1, AIAgent):
                 # Update code here
                 agent1.update(state, action1, next_state, reward1)
-              
+
             if isinstance(agent2, LearningHumanPTAgent):
                 agent2.belief_update(state, action1)
                 agent2.q_value_update(state, next_state, action2, action1, reward2)
@@ -53,6 +57,25 @@ def train_agents(agent1, agent2, env, episodes=500,
             elif isinstance(agent2, AIAgent):
                 # Update code here
                 agent2.update(state, action2, next_state, reward2)
+
+            # Keep Aware agents in the loop regarding updates
+            if isinstance(agent1, AwareHumanPTAgent):
+                if isinstance(agent2, LearningHumanPTAgent):
+                    opp_params = {'type':'LH', 'beliefs':agent2.beliefs, 'q_values':agent2.q_values}
+                    agent1.update(opp_params)
+ 
+                elif isinstance(agent2, AIAgent):
+                    opp_params = {'type':'AI', 'q_values':agent2.q_values}
+                    agent1.update(opp_params)
+           
+            if isinstance(agent2, AwareHumanPTAgent):
+                if isinstance(agent1, LearningHumanPTAgent):
+                    opp_params = {'type':'LH', 'beliefs':agent1.beliefs, 'q_values':agent1.q_values}
+                    agent2.update(opp_params)
+
+                elif isinstance(agent1, AIAgent):
+                    opp_params = {'type':'AI', 'q_values':agent1.q_values}
+                    agent2.update(opp_params)
 
             # Store results
             episode_rewards1 += reward1
@@ -83,6 +106,15 @@ def train_agents(agent1, agent2, env, episodes=500,
 
         if isinstance(agent2, (LearningHumanPTAgent, AIAgent)):
             agent2.epsilon = max(agent2.epsilon * exploration_decay, agent2.epsilon_min)
+ 
+        if isinstance(agent1, AwareHumanPTAgent):
+            if not isinstance(agent2, AwareHumanPTAgent):
+                agent1.opp_epsilon = agent2.epsilon
+
+        if isinstance(agent2, AwareHumanPTAgent):
+            if not isinstance(agent1, AwareHumanPTAgent):
+                agent2.opp_epsilon = agent1.epsilon
+ 
 
         # Progress update
         if verbose and (episode + 1) % 100 == 0:
@@ -91,7 +123,7 @@ def train_agents(agent1, agent2, env, episodes=500,
 
     return results
 
-def analyze_matchup(results, agent1_type, agent2_type, game_name, games_dict):
+def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict):
     """Comprehensive analysis of a matchup"""
 
     actions = games_dict[game_name]['actions']
@@ -254,7 +286,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         'r': 0           # Reference point
     }
   
-    state_history_len = 1
+    state_history_len = 2
 
     # Define all matchups to test
     matchups = [
@@ -331,7 +363,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
 
         # Analyze this matchup
         games_dict = get_all_games()
-        analyze_matchup(results, agent1_type, agent2_type, game_name, games_dict)
+        analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict)
 
     return all_results
 

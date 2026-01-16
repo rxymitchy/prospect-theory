@@ -7,7 +7,7 @@ class RepeatedGameEnv:
         self.payoff_matrix = payoff_matrix
         self.horizon = horizon
         self.state_history = state_history
-        self.state_size = state_history
+        self.state_size = 4 ** state_history
 
     def reset(self):
         self.round = 0

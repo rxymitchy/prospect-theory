@@ -22,7 +22,7 @@ class AIAgent:
         self.epsilon = 0.3
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
-        self.alpha = 0.001
+        self.alpha = 0.05
 
     def act(self, state):
         state_tensor = torch.FloatTensor(state).unsqueeze(0)

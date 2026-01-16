@@ -23,7 +23,7 @@ class LearningHumanPTAgent:
         self.q_values = dict()
 
         # Initialize belief lambda parameter (subject to tuning)
-        self.lam = 0.9
+        self.lam = 0.95
        
         # Add an entry for each state populated with uniform probabilities over opponent action set size
         # And initialize q values
@@ -39,7 +39,7 @@ class LearningHumanPTAgent:
         self.epsilon = 0.3
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
-        self.alpha = 0.001
+        self.alpha = 0.05
 
         # Pathology Detection parameters
         self.tau = 0.1
@@ -58,14 +58,9 @@ class LearningHumanPTAgent:
         self.pt_rewards.append(pt_reward)
         return pt_reward
 
-    ###### DOUBLE CHECK THE INPUT TO THE STATE ARGUMENT, NEED A NUMBER TO ACCOUNT FOR INDEXING ###
     def act(self, state):
-        # I still need to figure out what state is
-        """Choose action using epsilon-greedy"""
-        state_tensor = torch.FloatTensor(state).unsqueeze(0) # CCOME BACK TO THIS VARIABLE
-
         # Epsilon exploration (lines 16-17 in alg 1)
-        if training and random.random() < self.epsilon:
+        if random.random() < self.epsilon:
             return random.randrange(self.action_size)
 
         # Pathology detection (lines 14, 18, 19 in alg 1)
@@ -79,8 +74,12 @@ class LearningHumanPTAgent:
         non_optimal_actions[optimal_action] = -torch.inf
         second_best_action = non_optimal_actions.max()
 
+        gap = action_values[optimal_action] - second_best_action
+        #print(f"[Debug] gap value LH: {gap}")
+
         ## Check for pathology:
-        if action_values[optimal_action] - second_best_action < self.tau:
+        if gap < self.tau:
+            #print("[Debug] Softmax activated")
             ##Softmax
             ## Normalize 
             vals = action_values - action_values.max()
@@ -131,7 +130,6 @@ class LearningHumanPTAgent:
             # We are maximizing
             if weighted_q_val > optimal_next_q_value:
                 optimal_next_q_value = weighted_q_val
-                print(f"[DEBUG]: New optimal value is {weighted_q_val}")
 
         # Get stored value (state, joint action value) 
         q_value = self.q_values[state][action][opp_action]

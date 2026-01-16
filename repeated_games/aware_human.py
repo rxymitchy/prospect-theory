@@ -13,7 +13,7 @@ class AwareHumanPTAgent:
         self.payoff_matrix = payoff_matrix
         self.pt = ProspectTheory(**pt_params)
         self.agent_id = agent_id  # 0 for row player, 1 for column player
-        self.learning_rate = 0.1
+
         self.ref_point = 0 # amenable to changes if we want to test different ref points
         self.tau = 0.1 # Also amenable
         self.temperature = 1.3
@@ -29,15 +29,20 @@ class AwareHumanPTAgent:
         if self.opponent_type == "AI":
             # Record value table
             self.opp_q_values = opp_params['q_values']
+
             # epsilon greedy formula
             self.opp_epsilon = opp_params['epsilon']
+
         elif self.opponent_type == "LH":
             # Record value table
             self.opp_q_values = opp_params['q_values']
+
             # Record epsilon
             self.opp_epsilon = opp_params['epsilon']
+
             # Record beliefs 
             self.opp_beliefs = opp_params['beliefs']
+
             # Decision parameters:
             self.opp_tau = opp_params['tau']
             self.opp_temp = opp_params['temp']
@@ -91,9 +96,8 @@ class AwareHumanPTAgent:
                 action_values[action] = action_cpt_value
 
             optimal_action = np.argmax(action_values)
-            suboptimal_action_values = action_values[:]
+            suboptimal_action_values = action_values.copy()
             suboptimal_action_values[optimal_action] = -np.inf
-
             second_best_action = np.argmax(suboptimal_action_values)
 
             gap = action_values[optimal_action] - action_values[second_best_action]
@@ -126,6 +130,8 @@ class AwareHumanPTAgent:
                         probs[idx] = self.opp_epsilon / self.opp_action_size 
 
         return probs
+
+        
  
     def cpt_transform(self, probs):
         """
@@ -156,13 +162,14 @@ class AwareHumanPTAgent:
 
         # Compute optimal action
         optimal_action = np.argmax(transformed_payoffs)
-        suboptimal_actions = transformed_payoffs[:]
+        suboptimal_actions = transformed_payoffs.copy()
         suboptimal_actions[optimal_action] = -np.inf
         second_best_action = np.argmax(suboptimal_actions)
 
         gap = transformed_payoffs[optimal_action] - transformed_payoffs[second_best_action]
 
         if gap < self.tau:
+            print("[Debug] Softmax activated")
             vals = transformed_payoffs - transformed_payoffs.max()
             probs = softmax(vals / self.temperature, axis=0)
             action = np.random.choice(self.action_size, p=probs)
@@ -172,3 +179,11 @@ class AwareHumanPTAgent:
 
         return action
 
+    def update(self, opp_params):
+        opp_type = opp_params['type']
+        if opp_type == 'LH':
+            self.opp_beliefs = opp_params['beliefs']
+            self.opp_q_values = opp_params['q_values']
+
+        elif opp_type == 'AI':
+            self.opp_q_values = opp_params['q_values']

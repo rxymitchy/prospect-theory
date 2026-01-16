@@ -9,6 +9,7 @@ from IPython.display import clear_output, display
 import warnings
 warnings.filterwarnings('ignore')
 import pandas as pd
+from repeated_games.train import run_complete_experiment, compare_all_results, train_agents 
 
 from repeated_games import (
     RepeatedGameEnv,
@@ -61,11 +62,12 @@ def interactive_experiment():
             payoff_matrix = games[game_name]['payoffs']
 
             # Run a quick version
-            env = RepeatedGameEnv(payoff_matrix, horizon=50, state_history=2)
+            env = RepeatedGameEnv(payoff_matrix, horizon=50, state_history=1)
             pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
             # Create agents
-            agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, 0)
+            action_size = 2
+            agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0)
             agent2 = AIAgent(env.state_size, 2, 1)
 
             print("\nTraining Aware PT vs AI for 100 episodes...")
