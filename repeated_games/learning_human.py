@@ -59,7 +59,7 @@ class LearningHumanPTAgent:
         return pt_reward
 
     ###### DOUBLE CHECK THE INPUT TO THE STATE ARGUMENT, NEED A NUMBER TO ACCOUNT FOR INDEXING ###
-    def act(self, state, training=True):
+    def act(self, state):
         # I still need to figure out what state is
         """Choose action using epsilon-greedy"""
         state_tensor = torch.FloatTensor(state).unsqueeze(0) # CCOME BACK TO THIS VARIABLE

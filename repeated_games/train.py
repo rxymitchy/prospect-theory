@@ -30,10 +30,10 @@ def train_agents(agent1, agent2, env, episodes=500,
 
         for _ in range(env.horizon):
             # Agent 1 chooses action
-            action1 = agent1.act(state, training=True)
+            action1 = agent1.act(state)
 
             # Agent 2 chooses action
-            action2 = agent2.act(state, training=True)
+            action2 = agent2.act(state)
 
             # Execute step
             next_state, reward1, reward2, done, _ = env.step(action1, action2)
@@ -260,10 +260,10 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
     # Define all matchups to test
     matchups = [
         ('Aware_PT', 'AI'),
-        ('Learning_PT', 'AI'),
-        ('Aware_PT', 'Learning_PT'),
-        ('Aware_PT', 'Aware_PT'),
-        ('Learning_PT', 'Learning_PT'),
+        ('LH', 'AI'),
+        ('Aware_PT', 'LH'),
+        #('Aware_PT', 'Aware_PT'), Not sure how to handle this yet
+        ('LH', 'LH'),
         ('AI', 'AI')  # Baseline
     ]
 
@@ -280,20 +280,43 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         # Create agents based on type
         ## 2x2 games only
         action_size = 2
-        state_size = 1
-        if agent1_type == 'Aware_PT':
-            agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, action_size, env.state_size, agent_id=0)
-        elif agent1_type == 'Learning_PT':
+        if agent1_type == 'LH':
             agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0)
-        else:  # AI
+        elif agent1_type == 'AI':  # AI
             agent1 = AIAgent(env.state_size, action_size, agent_id=0)
 
-        if agent2_type == 'Aware_PT':
-            agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, action_size, env.state_size, agent_id=1)
-        elif agent2_type == 'Learning_PT':
+        if agent2_type == 'LH':
             agent2 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=1)
-        else:  # AI
+        elif agent2_type == 'AI':  # AI
             agent2 = AIAgent(env.state_size, action_size, agent_id=1)
+
+        if agent1_type == 'Aware_PT':
+            opp_params = dict()
+            opp_params['opponent_action_size'] = action_size
+            opp_params['q_values'] = agent2.q_values
+            opp_params['opponent_type'] = agent2_type
+            opp_params['epsilon'] = agent2.epsilon
+            if agent2_type == 'LH':
+                opp_params['beliefs'] = agent2.beliefs
+                opp_params['tau'] = agent2.tau
+                opp_params['temp'] = agent2.temperature
+
+            agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
+
+        if agent2_type == 'Aware_PT':
+            opp_params = dict()
+            opp_params['opponent_action_size'] = action_size
+            opp_params['q_values'] = agent1.q_values
+            opp_params['opponent_type'] = agent1_type
+            opp_params['epsilon'] = agent1.epsilon
+            if agent1_type == 'LH':
+                opp_params['beliefs'] = agent1.beliefs
+                opp_params['tau'] = agent1.tau
+                opp_params['temp'] = agent1.temperature
+            
+
+            agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1, opp_params=opp_params)
+
 
         # Train the matchup
         print(f"Training {episodes} episodes...")
