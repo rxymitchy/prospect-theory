@@ -7,7 +7,7 @@ class RepeatedGameEnv:
         self.payoff_matrix = payoff_matrix
         self.horizon = horizon
         self.state_history = state_history
-        self.state_size = state_history * 4  # 4 possible action pairs
+        self.state_size = state_history
 
     def reset(self):
         self.round = 0
@@ -15,22 +15,21 @@ class RepeatedGameEnv:
         return self._get_state()
 
     def _get_state(self):
-        """State: one-hot encoding of last action pairs"""
-        state = np.zeros(self.state_size, dtype=np.float32)
-
-        for i in range(min(self.state_history, len(self.history))):
-            action1, action2 = self.history[-(i+1)]
-            idx = i * 4
-            if action1 == 0 and action2 == 0:
-                state[idx] = 1
-            elif action1 == 0 and action2 == 1:
-                state[idx + 1] = 1
-            elif action1 == 1 and action2 == 0:
-                state[idx + 2] = 1
-            else:  # 1,1
-                state[idx + 3] = 1
-
-        return state
+        """
+        Tabular state: base-4 encoding of last `state_history` joint actions.
+        Most recent pair is least significant digit.
+        (0,0)->0 (0,1)->1 (1,0)->2 (1,1)->3
+        """
+        k = self.state_history
+        state = 0
+        for i in range(k):
+            if i < len(self.history):
+                a1, a2 = self.history[-(i+1)]
+                pair = a1 * 2 + a2
+            else:
+                pair = 0  # padding for missing history
+            state += pair * (4 ** i)
+        return int(state)
 
     def step(self, action1, action2):
         reward1 = float(self.payoff_matrix[action1, action2, 0])

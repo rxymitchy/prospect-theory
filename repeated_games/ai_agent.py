@@ -7,7 +7,6 @@ class AIAgent:
     def __init__(self, state_size, action_size, agent_id=0):
         self.state_size = state_size
         self.action_size = action_size
-        self.opp_action_size = opp_action_size
         self.agent_id = agent_id
 
         # Initialize q values as a dictionary

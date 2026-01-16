@@ -253,9 +253,8 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         'gamma': 0.61,   # Probability weighting
         'r': 0           # Reference point
     }
-
-    # Create environment
-    env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=2)
+  
+    state_history_len = 1
 
     # Define all matchups to test
     matchups = [
@@ -275,7 +274,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         print('='*70)
 
         # Reset environment
-        env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=2)
+        env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=state_history_len)
 
         # Create agents based on type
         ## 2x2 games only
