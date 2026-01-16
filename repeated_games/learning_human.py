@@ -22,8 +22,9 @@ class LearningHumanPTAgent:
         self.beliefs = dict()
         self.q_values = dict()
 
-        # Initialize belief lambda parameter (subject to tuning)
-        self.lam = 0.95
+        # Initialize belief and reference point lambda parameters (subject to tuning)
+        self.lam_b = 0.95
+        self.lab_r = 0.99
        
         # Add an entry for each state populated with uniform probabilities over opponent action set size
         # And initialize q values
@@ -101,7 +102,7 @@ class LearningHumanPTAgent:
             assert torch.isclose(probabilities.sum(), torch.tensor(1.0), atol=1e-5), \
             "Beliefs don't sum to 1"
 
-            outcomes = self.q_values[state][action]
+            outcomes = self.q_values[state][action] - self.ref_point
 
             action_val = self.pt.expected_pt_value(outcomes, probabilities) 
             action_values[action] = action_val
@@ -112,6 +113,9 @@ class LearningHumanPTAgent:
         one_hot = torch.zeros(self.opp_action_size)
         one_hot[opp_action] = 1
         self.beliefs[state] = self.lam * self.beliefs[state] + (1 - self.lam) * one_hot
+
+    def ref_update(self, payoff):
+        self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
 
     def q_value_update(self, state, next_state, action, opp_action, reward):
         if not torch.is_tensor(reward):

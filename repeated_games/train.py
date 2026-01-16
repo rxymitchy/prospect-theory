@@ -44,6 +44,7 @@ def train_agents(agent1, agent2, env, episodes=500,
 
             if isinstance(agent1, LearningHumanPTAgent):
                 agent1.belief_update(state, action2)
+                agent1.ref_update(reward1)
                 agent1.q_value_update(state, next_state, action1, action2, reward1)
 
             elif isinstance(agent1, AIAgent):
@@ -52,6 +53,7 @@ def train_agents(agent1, agent2, env, episodes=500,
 
             if isinstance(agent2, LearningHumanPTAgent):
                 agent2.belief_update(state, action1)
+                agent2.ref_update(reward2)
                 agent2.q_value_update(state, next_state, action2, action1, reward2)
 
             elif isinstance(agent2, AIAgent):
