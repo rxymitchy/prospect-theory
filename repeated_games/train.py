@@ -49,7 +49,7 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent1.ref_update(reward1)
                 agent1.q_value_update(state, next_state, action1, action2, reward1)
                 if state not in episode_q_values1.keys():
-                    episode_q_values_1[state] = []
+                    episode_q_values1[state] = []
 
             elif isinstance(agent1, AIAgent):
                 # Update code here

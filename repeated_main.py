@@ -26,7 +26,6 @@ from repeated_games import (
      
 
 def interactive_experiment():
-    """Interactive experiment runner for Colab"""
 
     print("="*80)
     print("PROSPECT THEORY REPEATED GAMES - ENHANCED EXPERIMENTS")
@@ -51,9 +50,10 @@ def interactive_experiment():
         print("2. Run complete experiment for a specific game")
         print("3. Compare all games (summary)")
         print("4. Run custom matchup")
-        print("5. Exit")
+        print("5. Run Algorithm 1 vs Fictitious Play comparison")  
+        print("6. Exit")
 
-        choice = input("\nEnter choice (1-5): ").strip()
+        choice = input("\nEnter choice (1-6): ").strip()
 
         if choice == '1':
             # Quick demo
@@ -150,7 +150,7 @@ def interactive_experiment():
                 pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
                 # Test one key matchup
-                agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, 0)
+                agent1 = agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
                 agent2 = AIAgent(env.state_size, 2, 1)
 
                 results = train_agents(agent1, agent2, env, episodes=100, verbose=False)
@@ -237,14 +237,14 @@ def interactive_experiment():
 
             # Create agents
             if agent1_type == 'Aware_PT':
-                agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, 0)
+                agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
             elif agent1_type == 'Learning_PT':
                 agent1 = LearningHumanPTAgent(env.state_size, 2, pt_params, 0)
             else:
                 agent1 = AIAgent(env.state_size, 2, 0)
 
             if agent2_type == 'Aware_PT':
-                agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, 1)
+                agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
             elif agent2_type == 'Learning_PT':
                 agent2 = LearningHumanPTAgent(env.state_size, 2, pt_params, 1)
             else:
@@ -258,6 +258,40 @@ def interactive_experiment():
             analyze_matchup(results, agent1_type, agent2_type, game_name, games_dict)
 
         elif choice == '5':
+            # Algorithm 1 vs Fictitious Play comparison
+            print("\nRunning Algorithm 1 vs Fictitious Play comparison...")
+            
+            # Select game
+            print("\nAvailable games:")
+            for i, (name, data) in enumerate(games.items(), 1):
+                print(f"{i}. {name}: {data['description']}")
+            
+            game_choice = input("\nEnter game number: ").strip()
+            game_names = list(games.keys())
+            
+            if game_choice.isdigit() and 1 <= int(game_choice) <= len(games):
+                game_name = game_names[int(game_choice)-1]
+                payoff_matrix = games[game_name]['payoffs']
+                
+                episodes = input(f"Episodes to run (default 200): ").strip()
+                episodes = int(episodes) if episodes.isdigit() else 200
+                
+                # Run comparison
+                from repeated_games.trainbaseline import compare_algorithms, plot_comparison
+                
+                print(f"\nComparing Algorithm 1 vs Fictitious Play in {game_name}...")
+                results = compare_algorithms(game_name, payoff_matrix, episodes=episodes)
+                plot_comparison(results, game_name)
+                
+            else:
+                print("Invalid choice, using Prisoner's Dilemma")
+                game_name = 'PrisonersDilemma'
+                payoff_matrix = games[game_name]['payoffs']
+                from repeated_games.trainbaseline import compare_algorithms, plot_comparison
+                results = compare_algorithms(game_name, payoff_matrix, episodes=200)
+                plot_comparison(results, game_name)
+
+        elif choice == '6':
             print("\nExiting...")
             break
 
