@@ -24,15 +24,34 @@ class AIAgent:
         self.epsilon_decay = 0.995
         self.alpha = 0.05
 
+        # tiebreaker
+        self.tau = 0.1
+        self.temp = 1.3
+
     def act(self, state):
-        state_tensor = torch.FloatTensor(state).unsqueeze(0)
 
         if random.random() < self.epsilon:
             return random.randrange(self.action_size)
 
-        else:
-            action = torch.argmax(self.q_values[state]).item() 
+        q_values = self.q_values[state]
+        optimal_action = torch.argmax(q_values).item() 
+
+        suboptimal_q_values = q_values.clone()
+        suboptimal_q_values[optimal_action] = -torch.inf
+        second_best_action = torch.argmax(suboptimal_q_values).item()
+
+        gap = q_values[optimal_action] - q_values[second_best_action]
+
+        if gap < self.tau:
+            vals = q_values - q_values.max() # Normalize to prevent explosions
+            probs = torch.nn.softmax(vals / self.temp, dim=0)
+            action = torch.multinomial(probs, 1).item() # sample
+
             return action
+
+        else:
+            return optimal_action
+ 
 
     def update(self, state, action, next_state, reward=None):
         assert reward is not None, "Reward Undefined"
