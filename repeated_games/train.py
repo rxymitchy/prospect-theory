@@ -290,7 +290,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         ('Aware_PT', 'AI'),
         ('LH', 'AI'),
         ('Aware_PT', 'LH'),
-        #('Aware_PT', 'Aware_PT'), Not sure how to handle this yet
+        ('Aware_PT', 'Aware_PT'), 
         ('LH', 'LH'),
         ('AI', 'AI')  # Baseline
     ]

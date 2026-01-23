@@ -65,7 +65,7 @@ class AwareHumanPTAgent:
             opp_response = opp_best_responses[i]
             value = matrix[i, opp_response, self.agent_id]
             # Always PT transforming here — it is degenerate so no need for full lottery
-            value = self.pt.value_transform(value - self.ref_point)
+            value = self.pt.value_function(value - self.ref_point)
                 
             best_vals[i] = value
 
