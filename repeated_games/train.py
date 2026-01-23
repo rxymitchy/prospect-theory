@@ -64,25 +64,6 @@ def train_agents(agent1, agent2, env, episodes=500,
                 # Update code here
                 agent2.update(state, action2, next_state, reward2)
 
-            # Keep Aware agents in the loop regarding updates
-            if isinstance(agent1, AwareHumanPTAgent):
-                if isinstance(agent2, LearningHumanPTAgent):
-                    opp_params = {'type':'LH', 'beliefs':agent2.beliefs, 'q_values':agent2.q_values}
-                    agent1.update(opp_params)
- 
-                elif isinstance(agent2, AIAgent):
-                    opp_params = {'type':'AI', 'q_values':agent2.q_values}
-                    agent1.update(opp_params)
-           
-            if isinstance(agent2, AwareHumanPTAgent):
-                if isinstance(agent1, LearningHumanPTAgent):
-                    opp_params = {'type':'LH', 'beliefs':agent1.beliefs, 'q_values':agent1.q_values}
-                    agent2.update(opp_params)
-
-                elif isinstance(agent1, AIAgent):
-                    opp_params = {'type':'AI', 'q_values':agent1.q_values}
-                    agent2.update(opp_params)
-
             # Store results
             episode_rewards1 += reward1
             episode_rewards2 += reward2
@@ -320,29 +301,20 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
 
         if agent1_type == 'Aware_PT':
             opp_params = dict()
-            opp_params['opponent_action_size'] = action_size
-            opp_params['q_values'] = agent2.q_values
             opp_params['opponent_type'] = agent2_type
-            opp_params['epsilon'] = agent2.epsilon
-            if agent2_type == 'LH':
-                opp_params['beliefs'] = agent2.beliefs
-                opp_params['tau'] = agent2.tau
-                opp_params['temp'] = agent2.temperature
-
+            opp_params['opponent_action_size'] = action_size
+            opp_params['opp_ref'] = None
+            if agent2_type != "AI":
+                opp_params['opp_ref'] = agent2.ref_point
             agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
 
         if agent2_type == 'Aware_PT':
             opp_params = dict()
-            opp_params['opponent_action_size'] = action_size
-            opp_params['q_values'] = agent1.q_values
             opp_params['opponent_type'] = agent1_type
-            opp_params['epsilon'] = agent1.epsilon
-            if agent1_type == 'LH':
-                opp_params['beliefs'] = agent1.beliefs
-                opp_params['tau'] = agent1.tau
-                opp_params['temp'] = agent1.temperature
-            
-
+            opp_params['opponent_action_size'] = action_size
+            opp_params['opp_ref'] = None
+            if agent1_type != "AI":
+                opp_params['opp_ref'] = agent1.ref_point
             agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1, opp_params=opp_params)
 
 

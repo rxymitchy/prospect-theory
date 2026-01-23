@@ -1,5 +1,6 @@
 import torch
 import random
+from torch.nn import Softmax
 
 class AIAgent:
     """Standard RL agent without PT"""
@@ -27,6 +28,7 @@ class AIAgent:
         # tiebreaker
         self.tau = 0.1
         self.temp = 1.3
+        self.softmax = Softmax(dim=0)
 
     def act(self, state):
 
@@ -43,8 +45,9 @@ class AIAgent:
         gap = q_values[optimal_action] - q_values[second_best_action]
 
         if gap < self.tau:
+            print('[Debug AI] Softmax')
             vals = q_values - q_values.max() # Normalize to prevent explosions
-            probs = torch.nn.softmax(vals / self.temp, dim=0)
+            probs = self.softmax(vals / self.temp)
             action = torch.multinomial(probs, 1).item() # sample
 
             return action

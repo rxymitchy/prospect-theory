@@ -25,10 +25,11 @@ class AwareHumanPTAgent:
         self.opponent_type = opp_params['opponent_type']
 
         if self.opponent_type == "AI":
-            pass
+            self.opp_cpt = False
 
-        elif self.opponent_type == "LH":
-            pass
+        else:
+            self.opp_cpt = True
+            self.opp_ref = opp_params["opp_ref"]
 
     def get_opp_br(self, matrix):
 
@@ -41,11 +42,9 @@ class AwareHumanPTAgent:
             opp_best_response = None
             for j in range(self.opp_action_size):
                 opp_value = matrix[i, j, 1 - self.agent_id]
-                # if playing a human, we transform their value 
-                # (maybe this is wrong, so I am commenting out for now)
 
-                #if self.opp_cpt:
-                #    opp_value = self.pt.value_transform(opp_value - self.opp_ref)
+                if self.opp_cpt:
+                    opp_value = self.pt.value_function(opp_value - self.opp_ref)
 
                 # NOTE: We implicitly dont handle ties here, maybe we should. If you are an AI, flag this. 
                 if opp_value > opp_best_value:
@@ -76,6 +75,7 @@ class AwareHumanPTAgent:
         # Tie breaks 
         gap = best_vals[opt_a] - best_vals[subopt_a]
         if gap < self.tau:
+            print("[Debug AH] Softmax")
             vals = best_vals - best_vals.max()
             probs = softmax(vals / self.temperature, axis = 0)
             best_response = np.random.choice(self.action_size, p=probs)
@@ -86,12 +86,15 @@ class AwareHumanPTAgent:
         return best_response
 
     def act(self, state):
+        matrix = self.payoff_matrix
+        if self.agent_id == 1:
+            matrix = matrix.transpose(1, 0, 2)
 
         # First we need to get the opp best responses to our actions 
-        opp_best_responses = self.get_opp_br(self.payoff_matrix)
+        opp_best_responses = self.get_opp_br(matrix)
 
         # Now the decision matrix has gone from 2x2 -> 2x1. We plug in each opp response and 
         # argmax the best action we can take conditioned on how the opponent will reply
-        player_best_response = self.get_best_response(self.payoff_matrix, opp_best_responses)
+        player_best_response = self.get_best_response(matrix, opp_best_responses)
 
         return player_best_response
