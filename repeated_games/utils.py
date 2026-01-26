@@ -42,5 +42,22 @@ def get_all_games():
             ]),
             'description': 'Chicken Game',
             'actions': ['Swerve', 'Straight']
+        },
+        # NEW CRITICAL ADDITIONS FOR PAPER
+        'OchsGame': {
+            'payoffs': np.array([
+                [[0, 0], [5, 8]],    # Top/Left, Top/Right
+                [[8, 5], [0, 0]]     # Bottom/Left, Bottom/Right
+            ]),
+            'description': 'Ochs Game - PT equilibrium pathology',
+            'actions': ['Top', 'Bottom']
+        },
+        'CrawfordGame': {
+            'payoffs': np.array([
+                [[0, 0], [5, 1]],    # Top/Left, Top/Right
+                [[1, 5], [4, 4]]     # Bottom/Left, Bottom/Right
+            ]),
+            'description': 'Crawford Game - convex preference effects',
+            'actions': ['Top', 'Bottom']
         }
     }
