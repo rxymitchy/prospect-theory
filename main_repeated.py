@@ -277,7 +277,7 @@ def interactive_experiment():
                 episodes = int(episodes) if episodes.isdigit() else 200
                 
                 # Run comparison
-                from repeated_games.trainbaseline import compare_algorithms, plot_comparison
+                from repeated_games.baseline import compare_algorithms, plot_comparison
                 
                 print(f"\nComparing Algorithm 1 vs Fictitious Play in {game_name}...")
                 results = compare_algorithms(game_name, payoff_matrix, episodes=episodes)
@@ -287,7 +287,7 @@ def interactive_experiment():
                 print("Invalid choice, using Prisoner's Dilemma")
                 game_name = 'PrisonersDilemma'
                 payoff_matrix = games[game_name]['payoffs']
-                from repeated_games.trainbaseline import compare_algorithms, plot_comparison
+                from repeated_games.baseline import compare_algorithms, plot_comparison
                 results = compare_algorithms(game_name, payoff_matrix, episodes=200)
                 plot_comparison(results, game_name)
 
