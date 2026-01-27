@@ -22,7 +22,9 @@ def train_agents(agent1, agent2, env, episodes=500,
         'avg_rewards1': [],
         'avg_rewards2': [],
         'strategies1': [],  # For aware PT agent
-        'strategies2': []
+        'strategies2': [],
+        'q_values1': [],
+        'q_values2':[]
     }
 
     for episode in range(episodes):
@@ -86,6 +88,10 @@ def train_agents(agent1, agent2, env, episodes=500,
         results['actions2'].append(episode_actions2)
         results['avg_rewards1'].append(avg_reward1)
         results['avg_rewards2'].append(avg_reward2)
+        if not isinstance(agent1, AwareHumanPTAgent):
+            results['q_values1'].append(agent1.q_values)
+        if not isinstance(agent2, AwareHumanPTAgent):
+            results['q_values2'].append(agent2.q_values)
 
         # Decay exploration
         if isinstance(agent1, (LearningHumanPTAgent, AIAgent)):
@@ -109,7 +115,7 @@ def train_agents(agent1, agent2, env, episodes=500,
 
     return results
 
-def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict):
+def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix):
     """Comprehensive analysis of a matchup"""
 
     actions = games_dict[game_name]['actions']
@@ -332,7 +338,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
 
         # Analyze this matchup
         games_dict = get_all_games()
-        analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict)
+        analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix)
 
     return all_results
 

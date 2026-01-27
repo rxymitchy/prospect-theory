@@ -23,11 +23,11 @@ class AIAgent:
         self.epsilon = 0.3
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
-        self.alpha = 0.05
+        self.alpha = 0.01
 
         # tiebreaker
         self.tau = 0.1
-        self.temp = 1.3
+        self.temp = 0.7
         self.softmax = Softmax(dim=0)
 
     def act(self, state):

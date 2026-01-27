@@ -38,6 +38,8 @@ class LearningHumanPTAgent:
             # Q-values
             self.q_values[state] = torch.zeros(self.action_size, self.opp_action_size) 
 
+        self.state_visit_counter = dict()
+
         # Q-learning parameters
         self.gamma = 0.95
         self.epsilon = 0.3
@@ -125,6 +127,11 @@ class LearningHumanPTAgent:
         if not torch.is_tensor(reward):
             reward = torch.tensor(reward, dtype=self.q_values[state].dtype)
 
+        if state not in self.state_visit_counter.keys():
+            self.state_visit_counter[state] = 0
+
+        self.state_visit_counter += 1
+
         # Get maximuj value (not index)
         ## - inf because rewards can be negative
         optimal_next_q_value = -torch.inf
@@ -147,6 +154,25 @@ class LearningHumanPTAgent:
         # Update q values
         self.q_values[state][action][opp_action] += self.alpha * delta
 
+    def get_q_values(self):
+        q_values = torch.zeros(self.action_size, self.opp_action_size)
+
+        total_visits = sum(self.state_visit_counter.values())
+
+        if total_visits == 0:
+            return q_values
+
+        for state, q_vals in self.q_values.items():
+            num_visits = self.state_visit_counter[state]
+
+            if num_visits == 0:
+                continue
+
+            weight = num_visits / total_visits
+
+            q_values += weight * torch.as_tensor(q_vals, dtype=torch.float32)
+
+        return q_values # now in shape [action_size, opp_action_size]
 
 
 
