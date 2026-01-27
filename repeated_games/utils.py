@@ -43,7 +43,6 @@ def get_all_games():
             'description': 'Chicken Game',
             'actions': ['Swerve', 'Straight']
         },
-        # NEW CRITICAL ADDITIONS FOR PAPER
         'OchsGame': {
             'payoffs': np.array([
                 [[0, 0], [5, 8]],    # Top/Left, Top/Right

@@ -33,8 +33,8 @@ def train_agents(agent1, agent2, env, episodes=500,
         episode_rewards2 = 0
         episode_actions1 = []
         episode_actions2 = []
-        episode_q_values1 = dict()
-        episode_q_values2 = dict()
+        episode_q_values1 = []
+        episode_q_values2 = []
 
         for _ in range(env.horizon):
             # Agent 1 chooses action
@@ -50,21 +50,28 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent1.belief_update(state, action2)
                 agent1.ref_update(reward1)
                 agent1.q_value_update(state, next_state, action1, action2, reward1)
-                if state not in episode_q_values1.keys():
-                    episode_q_values1[state] = []
+                q_vals = agent1.get_q_values()
+                episode_q_values1.append(q_vals)
+                
 
             elif isinstance(agent1, AIAgent):
                 # Update code here
                 agent1.update(state, action1, next_state, reward1)
+                q_vals = agent1.get_q_values()
+                episode_q_values1.append(q_vals)
 
             if isinstance(agent2, LearningHumanPTAgent):
                 agent2.belief_update(state, action1)
                 agent2.ref_update(reward2)
                 agent2.q_value_update(state, next_state, action2, action1, reward2)
+                q_vals = agent2.get_q_values()
+                episode_q_values2.append(q_vals)
 
             elif isinstance(agent2, AIAgent):
                 # Update code here
                 agent2.update(state, action2, next_state, reward2)
+                q_vals = agent2.get_q_values()
+                episode_q_values2.append(q_vals)
 
             # Store results
             episode_rewards1 += reward1
@@ -88,6 +95,8 @@ def train_agents(agent1, agent2, env, episodes=500,
         results['actions2'].append(episode_actions2)
         results['avg_rewards1'].append(avg_reward1)
         results['avg_rewards2'].append(avg_reward2)
+        results['q_values1'].append(episode_q_values1)
+        results['q_values2'].append(episode_q_values2)
         if not isinstance(agent1, AwareHumanPTAgent):
             results['q_values1'].append(agent1.q_values)
         if not isinstance(agent2, AwareHumanPTAgent):

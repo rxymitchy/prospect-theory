@@ -18,6 +18,9 @@ class AIAgent:
         for state in range(self.state_size):
             self.q_values[state] = torch.zeros(self.action_size) 
 
+        # state counter
+        self.state_visit_counter = dict()
+
         # Q-learning parameters
         self.gamma = 0.95
         self.epsilon = 0.3
@@ -58,7 +61,36 @@ class AIAgent:
 
     def update(self, state, action, next_state, reward=None):
         assert reward is not None, "Reward Undefined"
+        
+        # Update state count
+        self.state_visit_counter[state] += 1
+
         curr_q_val = self.q_values[state][action]
         max_next_q_val = self.q_values[next_state].max()
         target = reward + self.gamma * max_next_q_val
         self.q_values[state][action] = (1 - self.alpha) * curr_q_val + self.alpha * target  
+       
+
+    def get_q_values(self):
+        q_values = torch.zeros(self.action_size, self.opp_action_size)
+
+        total_visits = sum(self.state_visit_counter.values())
+
+        if total_visits == 0:
+            return q_values
+
+        for state, q_val in self.q_values.items():
+            num_visits = self.state_visit_counter[state]
+
+            if num_visits == 0:
+                continue
+
+            weight = num_visits / total_visits
+
+            q_val = torch.as_tensor(q_val, dtype=torch.float32)
+
+            q_val = q_val.unsqueeze(1).repeat(1, self.opp_action_size)
+
+            q_values += weight * q_val
+
+        return q_values.numpy()

@@ -130,7 +130,7 @@ class LearningHumanPTAgent:
         if state not in self.state_visit_counter.keys():
             self.state_visit_counter[state] = 0
 
-        self.state_visit_counter += 1
+        self.state_visit_counter[state] += 1
 
         # Get maximuj value (not index)
         ## - inf because rewards can be negative
@@ -163,7 +163,7 @@ class LearningHumanPTAgent:
             return q_values
 
         for state, q_vals in self.q_values.items():
-            num_visits = self.state_visit_counter[state]
+            num_visits = self.state_visit_counter.get(state, 0)
 
             if num_visits == 0:
                 continue
@@ -172,8 +172,7 @@ class LearningHumanPTAgent:
 
             q_values += weight * torch.as_tensor(q_vals, dtype=torch.float32)
 
-        return q_values # now in shape [action_size, opp_action_size]
-
+        return q_values.numpy()
 
 
 
