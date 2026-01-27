@@ -5,9 +5,10 @@ from torch.nn import Softmax
 class AIAgent:
     """Standard RL agent without PT"""
 
-    def __init__(self, state_size, action_size, agent_id=0):
+    def __init__(self, state_size, action_size, opp_action_size, agent_id=0):
         self.state_size = state_size
         self.action_size = action_size
+        self.opp_action_size = opp_action_size
         self.agent_id = agent_id
 
         # Initialize q values as a dictionary
@@ -63,6 +64,9 @@ class AIAgent:
         assert reward is not None, "Reward Undefined"
         
         # Update state count
+        if state not in self.state_visit_counter.keys():
+            self.state_visit_counter[state] = 0
+
         self.state_visit_counter[state] += 1
 
         curr_q_val = self.q_values[state][action]
@@ -80,7 +84,7 @@ class AIAgent:
             return q_values
 
         for state, q_val in self.q_values.items():
-            num_visits = self.state_visit_counter[state]
+            num_visits = self.state_visit_counter.get(state, 0)
 
             if num_visits == 0:
                 continue
@@ -93,4 +97,8 @@ class AIAgent:
 
             q_values += weight * q_val
 
-        return q_values.numpy()
+        q_values = q_values.numpy()
+
+        print(q_values.shape)      
+ 
+        return q_values

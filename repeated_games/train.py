@@ -51,27 +51,39 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent1.ref_update(reward1)
                 agent1.q_value_update(state, next_state, action1, action2, reward1)
                 q_vals = agent1.get_q_values()
-                episode_q_values1.append(q_vals)
+                q_vals = np.asarray(q_vals, dtype=np.float32)  
+                results['q_values1'].append(q_vals)
+                if q_vals.shape != (2, 2):
+                    print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
                 
 
             elif isinstance(agent1, AIAgent):
                 # Update code here
                 agent1.update(state, action1, next_state, reward1)
                 q_vals = agent1.get_q_values()
-                episode_q_values1.append(q_vals)
+                q_vals = np.asarray(q_vals, dtype=np.float32)
+                results['q_values1'].append(q_vals)
+                if q_vals.shape != (2, 2): 
+                    print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
 
             if isinstance(agent2, LearningHumanPTAgent):
                 agent2.belief_update(state, action1)
                 agent2.ref_update(reward2)
                 agent2.q_value_update(state, next_state, action2, action1, reward2)
                 q_vals = agent2.get_q_values()
-                episode_q_values2.append(q_vals)
+                q_vals = np.asarray(q_vals, dtype=np.float32)
+                if q_vals.shape != (2, 2): 
+                    print("BAD SHAPE", type(agent2), q_vals.shape, q_vals)
+                results['q_values2'].append(q_vals)
 
             elif isinstance(agent2, AIAgent):
                 # Update code here
                 agent2.update(state, action2, next_state, reward2)
                 q_vals = agent2.get_q_values()
-                episode_q_values2.append(q_vals)
+                q_vals = np.asarray(q_vals, dtype=np.float32)
+                if q_vals.shape != (2, 2):
+                    print("BAD SHAPE", type(agent2), q_vals.shape, q_vals)
+                results['q_values2'].append(q_vals)
 
             # Store results
             episode_rewards1 += reward1
@@ -95,12 +107,6 @@ def train_agents(agent1, agent2, env, episodes=500,
         results['actions2'].append(episode_actions2)
         results['avg_rewards1'].append(avg_reward1)
         results['avg_rewards2'].append(avg_reward2)
-        results['q_values1'].append(episode_q_values1)
-        results['q_values2'].append(episode_q_values2)
-        if not isinstance(agent1, AwareHumanPTAgent):
-            results['q_values1'].append(agent1.q_values)
-        if not isinstance(agent2, AwareHumanPTAgent):
-            results['q_values2'].append(agent2.q_values)
 
         # Decay exploration
         if isinstance(agent1, (LearningHumanPTAgent, AIAgent)):
@@ -185,7 +191,32 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     # 4. Strategy evolution (for aware PT)
     ax4 = plt.subplot(2, 3, 4)
+    if len(results['q_values1']) > 0:
+        q_values1 = np.stack(results['q_values1'])
+        error1 = np.mean(np.abs(q_values1 - payoff_matrix[:, :, agent1.agent_id]), axis=(1,2)) 
+        ax4.plot(error1, label=f'{agent1_type}', linewidth=1)
+        print('agent1 plotted')
+        
+    else:
+        q_values1 = []
+        error1 = []
 
+    if len(results['q_values2']) > 0:
+        for i, s in enumerate(results['q_values2']):
+            if s.shape != (2, 2):
+                print(f"bad shape {s.shape} detected later at {i}")
+        q_values2 = np.stack(results['q_values2'])
+        error2 = np.mean(np.abs(q_values2 - payoff_matrix[:, :, agent2.agent_id]), axis=(1,2)) 
+        ax4.plot(error2, label=f'{agent2_type}', linewidth=1)
+    else:
+        q_values2 = []
+        error2 = []
+
+    ax4.set_xlabel('Step')
+    ax4.set_ylabel('Mean Absolute Error (Q - R)')
+    ax4.set_title('Mean Absolute Error')
+    ax4.legend()
+    
     # 5. Cumulative rewards
     ax5 = plt.subplot(2, 3, 5)
     cumulative1 = np.cumsum(results['rewards1'])
@@ -307,12 +338,12 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
         if agent1_type == 'LH':
             agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0)
         elif agent1_type == 'AI':  # AI
-            agent1 = AIAgent(env.state_size, action_size, agent_id=0)
+            agent1 = AIAgent(env.state_size, action_size, action_size, agent_id=0)
 
         if agent2_type == 'LH':
             agent2 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=1)
         elif agent2_type == 'AI':  # AI
-            agent2 = AIAgent(env.state_size, action_size, agent_id=1)
+            agent2 = AIAgent(env.state_size, action_size, action_size, agent_id=1)
 
         if agent1_type == 'Aware_PT':
             opp_params = dict()
