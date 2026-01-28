@@ -52,6 +52,7 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent1.q_value_update(state, next_state, action1, action2, reward1)
                 q_vals = agent1.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)  
+                q_vals = (1 - agent1.gamma) * q_vals
                 results['q_values1'].append(q_vals)
                 if q_vals.shape != (2, 2):
                     print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
@@ -62,6 +63,7 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent1.update(state, action1, next_state, reward1)
                 q_vals = agent1.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
+                q_vals = (1 - agent1.gamma) * q_vals
                 results['q_values1'].append(q_vals)
                 if q_vals.shape != (2, 2): 
                     print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
@@ -72,6 +74,7 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent2.q_value_update(state, next_state, action2, action1, reward2)
                 q_vals = agent2.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
+                q_vals = (1 - agent2.gamma) * q_vals
                 if q_vals.shape != (2, 2): 
                     print("BAD SHAPE", type(agent2), q_vals.shape, q_vals)
                 results['q_values2'].append(q_vals)
@@ -81,6 +84,7 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent2.update(state, action2, next_state, reward2)
                 q_vals = agent2.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
+                q_vals = (1 - agent2.gamma) * q_vals
                 if q_vals.shape != (2, 2):
                     print("BAD SHAPE", type(agent2), q_vals.shape, q_vals)
                 results['q_values2'].append(q_vals)
@@ -202,9 +206,6 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
         error1 = []
 
     if len(results['q_values2']) > 0:
-        for i, s in enumerate(results['q_values2']):
-            if s.shape != (2, 2):
-                print(f"bad shape {s.shape} detected later at {i}")
         q_values2 = np.stack(results['q_values2'])
         error2 = np.mean(np.abs(q_values2 - payoff_matrix[:, :, agent2.agent_id]), axis=(1,2)) 
         ax4.plot(error2, label=f'{agent2_type}', linewidth=1)
