@@ -132,23 +132,20 @@ class LearningHumanPTAgent:
 
         self.state_visit_counter[state] += 1
 
+        # Get maximuj value (not index)
+        ## - inf because rewards can be negative
+        optimal_next_q_value = float("-inf")
         ## next state is necessary for double auction game
         q_values = self.q_values[next_state]
         beliefs = self.beliefs[next_state]
-
-        # Get maximuj value (not index)
-        ## - inf because rewards can be negative
-        optimal_next_q_value = torch.tensor(float("-inf"), dtype=beliefs.dtype)
-
-        eps = torch.tensor(1e-8, dtype=beliefs.dtype) # For tie breaks
         for a_prime in range(self.action_size):
             q_val = q_values[a_prime]
             # linear expectation of beliefs and values
-            weighted_q_val = torch.dot(beliefs, q_val)
+            weighted_q_val = torch.dot(beliefs, q_val).item()
             # We are maximizing
-            if weighted_q_val > optimal_next_q_value + eps:
+            if weighted_q_val > optimal_next_q_value:
                 optimal_next_q_value = weighted_q_val
-            elif torch.abs(weighted_q_val - optimal_next_q_value) <= eps:
+            elif weighted_q_val == optimal_next_q_value:
                 if random.random() < 0.5:
                     optimal_next_q_value = weighted_q_val
 
