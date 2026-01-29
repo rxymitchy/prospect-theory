@@ -45,7 +45,7 @@ class LearningHumanPTAgent:
         self.epsilon = 0.3
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
-        self.alpha = 0.05
+        self.alpha = 0.01
 
         # Pathology Detection parameters
         self.tau = 0.1
@@ -123,7 +123,7 @@ class LearningHumanPTAgent:
         if self.ref_update_mode == "EMA":
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
 
-    def q_value_update(self, state, next_state, action, opp_action, reward):
+    def q_value_update(self, state, next_state, action, opp_action, reward, done=False):
         if not torch.is_tensor(reward):
             reward = torch.tensor(reward, dtype=self.q_values[state].dtype)
 
@@ -135,6 +135,7 @@ class LearningHumanPTAgent:
         ## next state is necessary for double auction game
         q_values = self.q_values[next_state]
         beliefs = self.beliefs[next_state]
+        #print(f"beliefs: {beliefs}")
 
         # Get maximuj value (not index)
         ## - inf because rewards can be negative
@@ -154,6 +155,9 @@ class LearningHumanPTAgent:
 
         # Get stored value (state, joint action value) 
         q_value = self.q_values[state][action][opp_action]
+
+        if done:
+            optimal_next_q_val = 0
 
         # Calculate delta in untransformed reward space
         delta = reward + self.gamma * optimal_next_q_value - q_value 

@@ -60,7 +60,7 @@ class AIAgent:
             return optimal_action
  
 
-    def update(self, state, action, next_state, reward=None):
+    def update(self, state, action, next_state, reward=None, done=False):
         assert reward is not None, "Reward Undefined"
         
         # Update state count
@@ -71,6 +71,10 @@ class AIAgent:
 
         curr_q_val = self.q_values[state][action]
         max_next_q_val = self.q_values[next_state].max()
+
+        if done is True:
+            max_next_q_val = 0
+
         target = reward + self.gamma * max_next_q_val
         self.q_values[state][action] = (1 - self.alpha) * curr_q_val + self.alpha * target  
        
@@ -99,6 +103,4 @@ class AIAgent:
 
         q_values = q_values.numpy()
 
-        print(q_values.shape)      
- 
         return q_values

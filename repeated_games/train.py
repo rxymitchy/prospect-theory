@@ -26,6 +26,7 @@ def train_agents(agent1, agent2, env, episodes=500,
         'q_values1': [],
         'q_values2':[]
     }
+    joint_counts = np.zeros((2,2), dtype=int)
 
     for episode in range(episodes):
         state = env.reset()
@@ -46,10 +47,16 @@ def train_agents(agent1, agent2, env, episodes=500,
             # Execute step
             next_state, reward1, reward2, done, _ = env.step(action1, action2)
 
+            #Debug logic here
+            states_of_interest = [5, 6, 9]
+
+            if (state in states_of_interest or next_state in states_of_interest) and episode % 100 == 0:
+                print(f"current state: {state}, next state: {next_state}, action1: {action1}, action2: {action2}, reward1: {reward1}, reward2: {reward2}") 
+
             if isinstance(agent1, LearningHumanPTAgent):
                 agent1.belief_update(state, action2)
                 agent1.ref_update(reward1)
-                agent1.q_value_update(state, next_state, action1, action2, reward1)
+                agent1.q_value_update(state, next_state, action1, action2, reward1, done)
                 q_vals = agent1.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)  
                 q_vals = (1 - agent1.gamma) * q_vals
@@ -60,7 +67,7 @@ def train_agents(agent1, agent2, env, episodes=500,
 
             elif isinstance(agent1, AIAgent):
                 # Update code here
-                agent1.update(state, action1, next_state, reward1)
+                agent1.update(state, action1, next_state, reward1, done)
                 q_vals = agent1.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent1.gamma) * q_vals
@@ -71,7 +78,7 @@ def train_agents(agent1, agent2, env, episodes=500,
             if isinstance(agent2, LearningHumanPTAgent):
                 agent2.belief_update(state, action1)
                 agent2.ref_update(reward2)
-                agent2.q_value_update(state, next_state, action2, action1, reward2)
+                agent2.q_value_update(state, next_state, action2, action1, reward2, done)
                 q_vals = agent2.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent2.gamma) * q_vals
@@ -81,7 +88,7 @@ def train_agents(agent1, agent2, env, episodes=500,
 
             elif isinstance(agent2, AIAgent):
                 # Update code here
-                agent2.update(state, action2, next_state, reward2)
+                agent2.update(state, action2, next_state, reward2, done)
                 q_vals = agent2.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent2.gamma) * q_vals
@@ -94,6 +101,8 @@ def train_agents(agent1, agent2, env, episodes=500,
             episode_rewards2 += reward2
             episode_actions1.append(action1)
             episode_actions2.append(action2)
+
+            joint_counts[action1, action2] += 1
 
             state = next_state
 
@@ -131,6 +140,8 @@ def train_agents(agent1, agent2, env, episodes=500,
         if verbose and (episode + 1) % 100 == 0:
             print(f"  Episode {episode + 1}/{episodes}: "
                   f"Avg rewards = {avg_reward1:.3f}, {avg_reward2:.3f}")
+
+    print("joint actions: ", joint_counts)
 
     return results
 
@@ -197,9 +208,21 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax4 = plt.subplot(2, 3, 4)
     if len(results['q_values1']) > 0:
         q_values1 = np.stack(results['q_values1'])
+        print(f'unique q values agent 1: {np.unique(q_values1).size}, q vals 1 shape: {q_values1.shape}')
         error1 = np.mean(np.abs(q_values1 - payoff_matrix[:, :, agent1.agent_id]), axis=(1,2)) 
+        print(f"Error 1 shape: {error1.shape}, error 1 num unique: {np.unique(error1).size}, error 1 max: {error1.max()}, error 1 min: {error1.min()}")
         ax4.plot(error1, label=f'{agent1_type}', linewidth=1)
         print('agent1 plotted')
+        R = payoff_matrix[:, :, agent1.agent_id].astype(np.float32)
+        Q = q_values1.astype(np.float32)
+
+        for t in [0, 1, 10, 100, 1000, 19999]:
+            Qt = Q[t]
+            diff = np.abs(Qt - R)
+            print("t", t)
+            print("Q=\n", Qt)
+            print("abs(Q-R)=\n", diff, "mean=", diff.mean())
+
         
     else:
         q_values1 = []
@@ -207,7 +230,9 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     if len(results['q_values2']) > 0:
         q_values2 = np.stack(results['q_values2'])
+        print(f'unique q values agent 2: {np.unique(q_values2).size}, q vals 2 shape: {q_values2.shape}')
         error2 = np.mean(np.abs(q_values2 - payoff_matrix[:, :, agent2.agent_id]), axis=(1,2)) 
+        print(f"Error 2 shape: {error2.shape}, error 2 num unique: {np.unique(error2).size}, error 2 max: {error2.max()}, error 2 min: {error2.min()}")
         ax4.plot(error2, label=f'{agent2_type}', linewidth=1)
     else:
         q_values2 = []
@@ -233,12 +258,25 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     # 6. Reward distribution
     ax6 = plt.subplot(2, 3, 6)
-    last_100_1 = results['avg_rewards1'][-100:] if len(results['avg_rewards1']) >= 100 else results['avg_rewards1']
-    last_100_2 = results['avg_rewards2'][-100:] if len(results['avg_rewards2']) >= 100 else results['avg_rewards2']
+    k = 100
+    if len(results['q_values1']) > 1:
+        q_values1 = np.stack(results['q_values1'])
+        q_values1, q_values1_copy = q_values1[1:], q_values1[:-1]        
+        q_values1_diff = q_values1 - q_values1_copy
+        q_change1 = np.mean(np.abs(q_values1_diff), axis = tuple(range(1, q_values1_diff.ndim)))
+        ax6.plot(q_change1[::k], label=f'{agent1_type}')
+        print(q_change1.shape)
 
-    ax6.boxplot([last_100_1, last_100_2], labels=[agent1_type, agent2_type])
-    ax6.set_ylabel('Average Reward')
-    ax6.set_title('Reward Distribution (last 100 episodes)')
+    if len(results['q_values2']) > 1:
+        q_values2 = np.stack(results['q_values2'])
+        q_values2, q_values2_copy = q_values2[1:], q_values2[:-1]     
+        q_values2_diff = q_values2 - q_values2_copy
+        q_change2 = np.mean(np.abs(q_values2_diff), axis = tuple(range(1, q_values2_diff.ndim)))
+        ax6.plot(q_change2[::k], label=f'{agent2_type}')
+    
+    ax6.set_ylabel('Q Value Diff')
+    ax6.set_title('Q Values Changes')
+    ax6.legend()
     ax6.grid(True, alpha=0.3)
 
     plt.suptitle(f'{game_name}: {agent1_type} vs {agent2_type}', fontsize=16, y=1.02)

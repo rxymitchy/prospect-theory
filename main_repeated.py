@@ -236,26 +236,58 @@ def interactive_experiment():
             pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
             # Create agents
+            action_size = 2
             if agent1_type == 'Aware_PT':
+                opp_params = dict()
+                opp_params['opponent_type'] = agent2_type
+                opp_params['opponent_action_size'] = action_size
+                opp_params['opp_ref'] = None
+                if agent2_type != "AI":
+                    opp_params['opp_ref'] = agent2.ref_point
                 agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
             elif agent1_type == 'Learning_PT':
-                agent1 = LearningHumanPTAgent(env.state_size, 2, pt_params, 0)
+                agent1 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 0)
             else:
-                agent1 = AIAgent(env.state_size, 2, 0)
+                agent1 = AIAgent(env.state_size, 2, 2, 0)
 
             if agent2_type == 'Aware_PT':
-                agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
+                opp_params = dict()
+                opp_params['opponent_type'] = agent1_type
+                opp_params['opponent_action_size'] = action_size
+                opp_params['opp_ref'] = None
+                if agent1_type != "AI":
+                    opp_params['opp_ref'] = agent1.ref_point
+                agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1,opp_params=opp_params)
             elif agent2_type == 'Learning_PT':
-                agent2 = LearningHumanPTAgent(env.state_size, 2, pt_params, 1)
+                agent2 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 1)
             else:
-                agent2 = AIAgent(env.state_size, 2, 1)
+                agent2 = AIAgent(env.state_size, 2, 2, 1)
 
             # Train
             results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True)
 
             # Analyze
             games_dict = get_all_games()
-            analyze_matchup(results, agent1_type, agent2_type, game_name, games_dict)
+            print(payoff_matrix)
+            if agent1_type != 'Aware_PT':
+                agent1_q_vals = agent1.get_q_values()
+                print(f"Agent 1 state visits: {agent1.state_visit_counter}")
+                print(f"Agent 1 raw q values = {agent1_q_vals}, agent 1 normalized q values = {(1-agent1.gamma) * agent1_q_vals}")
+
+            if agent2_type != 'Aware_PT':
+                agent2_q_vals = agent2.get_q_values()
+                print(f"Agent 2 raw q values = {agent2_q_vals}, agent 2 normalized q values = {(1-agent2.gamma) * agent2_q_vals}")
+
+                print(f"Agent 2 state visits: {agent2.state_visit_counter}")
+
+
+            if hasattr(agent1, "beliefs"):
+                print(f"Agent 1 beliefs: {agent1.beliefs}")
+
+            if hasattr(agent2, "beliefs"):
+                print(f"Agent 2 beliefs: {agent2.beliefs}")
+
+            analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix)
 
         elif choice == '5':
             # Algorithm 1 vs Fictitious Play comparison
