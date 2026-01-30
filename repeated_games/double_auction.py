@@ -1,14 +1,12 @@
 # Double Auction Game
 class DoubleAuction:
-  def __init__(self, k=100):
-    self.A = set(range(k+1))
-    self.B = set(range(k+1))
+  def __init__(self, k=10, valuation=6, cost=4):
+    self.A = set(range(1, k+1))
+    self.B = set(range(1, k+1))
     self.k = k
 
-    # Static, arbitrary valuation and costs for now.
-    # I'll spend some time figuring out how to handle this
-    self.valuation = 65
-    self.cost = 45
+    self.valuation = valuation
+    self.cost = cost
 
   def reset(self):
     self.valuation = np.random.randint(0, 101)

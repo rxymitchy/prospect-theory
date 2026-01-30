@@ -52,7 +52,8 @@ def interactive_experiment():
         print("3. Compare all games (summary)")
         print("4. Run custom matchup")
         print("5. Run Algorithm 1 vs Fictitious Play comparison")  
-        print("6. Exit")
+        print("6. Run Double Auction Game (Still Under Construction)")
+        print("7. Exit")
 
         choice = input("\nEnter choice (1-6): ").strip()
 
@@ -389,6 +390,122 @@ def interactive_experiment():
                 plot_comparison(results, game_name)
 
         elif choice == '6':
+            # Custom matchup
+            print("\nDouble Auction Game")
+            print("-"*40)
+            game_name = "Double Auction Game"
+
+            # Range of prices the double auction game will operate in
+            price_range = 0
+            while price_range <= 0 or price_range >= 100:
+                price_range = int(input("\n Set Price Range (from 1 -> n, Default = n = 10, Max = n = 99): ").strip())
+                if price_range <= 0 or price_range >= 100:
+                    print("Invalid input, try again")
+
+            # The true value that the buy thinks the product has (so buying above = loss, below = profit)
+            valuation = 0
+            while valuation <= 0 or valuation > price_range:
+                valuation = int(input(f"\n Set Valuation (Default = 6, Max = {price_range}): ").strip())
+                if valuation <= 0 or valuation > price_range:
+                    print("Invalid input, try again")
+
+            # The true cost to make the product (selling above = profit, below = loss)
+            cost = 0
+            while cost <= 0 or cost > price_range:
+                cost = int(input(f"\n Set Cost (Default = 4, Max = {price_range}, Valuation = {valuation}): ").strip())
+                if cost <= 0 or cost > price_range:
+                    print("Invalid input, try again")
+
+            # Select agent types
+            print("\nAgent types: Aware_PT, Learning_PT, AI")
+            valid_types = ['Aware_PT', 'Learning_PT', 'AI']
+            agent1_type, agent2_type = "", ""
+
+            while agent1_type not in valid_types or agent2_type not in valid_types:
+                agent1_type = input("Agent 1 type: ").strip()
+                agent2_type = input("Agent 2 type: ").strip()
+
+                if agent1_type not in valid_types or agent2_type not in valid_types:
+                    print("Agents input incorrectly, try again")
+
+            # Get parameters
+            episodes = input("Episodes (default 200): ").strip()
+            episodes = int(episodes) if episodes.isdigit() else 200
+
+            # Run custom matchup
+            print(f"\nRunning {agent1_type} vs {agent2_type} in {game_name}...")
+
+            env = DoubleAuction(k=price_range, valuation=valuation, cost=cost)
+
+            # Reference point setting
+            # Options = Fixed, EMA, Q, EMAOR
+            ref_lambda = 0.9
+
+            # Create agents
+            action_size = 2
+            if agent1_type == 'Learning_PT':
+                agent1 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 0, ref_setting=ref_setting, lambda_ref = ref_lambda)
+            elif agent1_type == "AI":
+                agent1 = AIAgent(env.state_size, 2, 2, 0)
+
+            if agent2_type == 'Learning_PT':
+                agent2 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 1, ref_setting=ref_setting, lambda_ref = ref_lambda)
+            elif agent2_type == 'AI':
+                agent2 = AIAgent(env.state_size, 2, 2, 1)
+
+            if agent1_type == 'Aware_PT':
+                opp_params = dict()
+                opp_params['opponent_type'] = agent2_type
+                opp_params['opponent_action_size'] = action_size
+                opp_params['opp_ref'] = None
+                if agent2_type != "AI":
+                    if agent2_type == "Aware_PT":
+                        opp_params['opp_ref'] = 0 # Setting static for now, will have to coordinate with external variable 
+                    else:
+                        opp_params['opp_ref'] = agent2.ref_point
+                agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
+
+            if agent2_type == 'Aware_PT':
+                opp_params = dict()
+                opp_params['opponent_type'] = agent1_type
+                opp_params['opponent_action_size'] = action_size
+                opp_params['opp_ref'] = None
+                if agent1_type != "AI":
+                    opp_params['opp_ref'] = agent1.ref_point
+                agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1,opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
+
+
+            # Train
+            results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True)
+
+            # Analyze
+            games_dict = get_all_games()
+            print('Payoff Matrix:', payoff_matrix)
+            print('Agent 1 Softmax triggers: ', agent1.softmax_counter)
+            print('Agent 2 Softmax triggers: ', agent2.softmax_counter)
+
+            if agent1_type != 'Aware_PT':
+                agent1_q_vals = agent1.get_q_values()
+                print(f"Agent 1 state visits: {agent1.state_visit_counter}")
+                print(f"Agent 1 raw q values = {agent1_q_vals}, agent 1 normalized q values = {(1-agent1.gamma) * agent1_q_vals}")
+
+            if agent2_type != 'Aware_PT':
+                agent2_q_vals = agent2.get_q_values()
+                print(f"Agent 2 raw q values = {agent2_q_vals}, agent 2 normalized q values = {(1-agent2.gamma) * agent2_q_vals}")
+
+                print(f"Agent 2 state visits: {agent2.state_visit_counter}")
+
+
+            if hasattr(agent1, "beliefs"):
+                print(f"Agent 1 beliefs: {agent1.beliefs}")
+
+            if hasattr(agent2, "beliefs"):
+                print(f"Agent 2 beliefs: {agent2.beliefs}")
+
+            analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix)
+
+
+        elif choice == '7':
             print("\nExiting...")
             break
 
