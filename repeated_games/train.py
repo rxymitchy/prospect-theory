@@ -76,7 +76,6 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent1.gamma) * q_vals
                 results['q_values1'].append(q_vals)
-                results['ref_points1'].append(agent1.ref_point)
                 if q_vals.shape != (2, 2): 
                     print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
 
@@ -105,7 +104,6 @@ def train_agents(agent1, agent2, env, episodes=500,
                 if q_vals.shape != (2, 2):
                     print("BAD SHAPE", type(agent2), q_vals.shape, q_vals)
                 results['q_values2'].append(q_vals)
-                results['ref_points2'].append(agent2.ref_point)
 
             else: # Aware Human
                 agent2.ref_update(reward2, state)
@@ -190,12 +188,12 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     if len(results['ref_points2']) > 0:
         ref_points2 = results['ref_points2']
-        ax2.plot(ref_points2[::k], label=f'{agent1_type}')
+        ax2.plot(ref_points2[::k], label=f'{agent2_type}')
 
     ax2.set_xlabel(f'Step (Every 100)')
     ax2.xaxis.set_major_formatter(
-    FuncFormatter(lambda x, pos: f"{int(x*100)}")
-)
+        FuncFormatter(lambda x, pos: f"{int(x*k)}")
+    )
     ax2.set_ylabel('Reference Point')
     ax2.set_title('Ref. Points Over Time')
     ax2.legend()
@@ -289,9 +287,13 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
         q_values2_diff = q_values2 - q_values2_copy
         q_change2 = np.mean(np.abs(q_values2_diff), axis = tuple(range(1, q_values2_diff.ndim)))
         ax6.plot(q_change2[::k], label=f'{agent2_type}')
-    
+
+    ax6.set_xlabel("Steps (every 100)")    
     ax6.set_ylabel('Q Value Diff')
     ax6.set_title('Q Values Changes')
+    ax6.xaxis.set_major_formatter(
+        FuncFormatter(lambda x, pos: f"{int(x*k)}")
+    )
     ax6.legend()
     ax6.grid(True, alpha=0.3)
 
