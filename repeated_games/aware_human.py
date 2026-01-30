@@ -12,6 +12,8 @@ class AwareHumanPTAgent:
     def __init__(self, payoff_matrix, pt_params, action_size, state_size, agent_id=0, opp_params=None, ref_setting='Fixed', lambda_ref=0.95):
         self.payoff_matrix = payoff_matrix
         self.pt = ProspectTheory(**pt_params)
+        print('AH PT PARAMS: ', pt_params)
+
         self.agent_id = agent_id  # 0 for row player, 1 for column player
         self.lam_r = lambda_ref
         self.ref_update_mode = ref_setting
@@ -33,6 +35,8 @@ class AwareHumanPTAgent:
         else:
             self.opp_cpt = True
             self.opp_ref = opp_params["opp_ref"]
+
+        self.softmax_counter = 0 
 
     def get_opp_br(self, matrix):
 
@@ -68,8 +72,9 @@ class AwareHumanPTAgent:
             value = matrix[i, opp_response, self.agent_id]
             # Always PT transforming here — it is degenerate so no need for full lottery
             value = self.pt.value_function(value - self.ref_point)
-                
             best_vals[i] = value
+
+        
 
         opt_a = np.argmax(best_vals)
         subopt_vals = best_vals.copy()
@@ -78,7 +83,9 @@ class AwareHumanPTAgent:
         # Tie breaks 
         gap = best_vals[opt_a] - best_vals[subopt_a]
         if gap < self.tau:
-            print("[Debug AH] Softmax")
+            # Log tie break
+            self.softmax_counter += 1
+
             vals = best_vals - best_vals.max()
             probs = softmax(vals / self.temperature, axis = 0)
             best_response = np.random.choice(self.action_size, p=probs)
@@ -92,6 +99,7 @@ class AwareHumanPTAgent:
         matrix = self.payoff_matrix
         if self.agent_id == 1:
             matrix = matrix.transpose(1, 0, 2)
+
 
         # First we need to get the opp best responses to our actions 
         opp_best_responses = self.get_opp_br(matrix)

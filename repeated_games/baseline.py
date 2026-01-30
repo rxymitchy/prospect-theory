@@ -76,21 +76,13 @@ def train_fictitious_play(agent1, agent2, env, episodes=500):
     return results
 
 
-def compare_algorithms(game_name, payoff_matrix, episodes=300):
+def compare_algorithms(game_name, payoff_matrix, episodes=300, pt_params={}):
     """
     Compare Algorithm 1 vs Fictitious Play baseline
     """
     print(f"\n{'='*80}")
     print(f"COMPARISON: {game_name}")
     print(f"{'='*80}")
-    
-    # PT parameters
-    pt_params = {
-        'lambd': 2.25,
-        'alpha': 0.88,
-        'gamma': 0.61,
-        'r': 0
-    }
     
     # Create environment
     env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=2)

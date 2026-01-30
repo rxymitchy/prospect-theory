@@ -33,6 +33,7 @@ class AIAgent:
         self.tau = 0.1
         self.temp = 0.7
         self.softmax = Softmax(dim=0)
+        self.softmax_counter = 0
 
     def act(self, state):
 
@@ -49,7 +50,9 @@ class AIAgent:
         gap = q_values[optimal_action] - q_values[second_best_action]
 
         if gap < self.tau:
-            print('[Debug AI] Softmax')
+            # Log tie break
+            self.softmax_counter += 1
+
             vals = q_values - q_values.max() # Normalize to prevent explosions
             probs = self.softmax(vals / self.temp)
             action = torch.multinomial(probs, 1).item() # sample

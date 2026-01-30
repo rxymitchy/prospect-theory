@@ -10,6 +10,7 @@ import warnings
 warnings.filterwarnings('ignore')
 import pandas as pd
 from repeated_games.train import run_complete_experiment, compare_all_results, train_agents 
+from repeated_games.baseline import compare_algorithms, plot_comparison
 
 from repeated_games import (
     RepeatedGameEnv,
@@ -59,7 +60,7 @@ def interactive_experiment():
         print("SET REFERENCE POINT SETTING")
         print("="*80)
         print("\nOptions:")
-        print("1. Fixed (defaults at 0, go into the code to change")
+        print("1. Fixed (Set custom ref point)")
         print("2. EMA")
         print("3. Q (updates ref point based on max(Q(S, A)) at the current state. Normalized with (1-gamma) to move from expected discounted return scale to reward scale. ")
         print("4. EMAOR (Exponential Moving Average over Opponent Rewards, basically tracks how well the opponent is doing not how well the player is doing")
@@ -73,6 +74,36 @@ def interactive_experiment():
             if ref_setting not in viable_options:
                 print("Failed, please try again.")
 
+        r = float(input("Input Initial Reference Point Value (one chance): ").strip()) 
+
+        print("\n" + "="*80)
+        print("SET PT PARAMETERS")
+        print("="*80)
+        print("\nOptions:")
+        print("1. Kahneman and Tversky Params (gamma = 0.61, delta=0.69)")
+        print("2. Custom")
+        
+        pt_choice = 0
+        while pt_choice not in [1, 2]:
+            pt_choice = int(input("Enter 1 or 2 for your choice: ").strip())
+            if pt_choice not in [1, 2]:
+                print("Invalid input, try again")
+
+        if pt_choice == 1:
+            pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': r, 'delta': 0.69}
+
+        elif pt_choice == 2:
+            delta, gamma = -1, -1
+            while not 0 <= delta <= 1 or not 0 <= gamma <= 1:
+                delta = float(input("Enter delta value (must be in range [0, 1] continuous): ")) 
+                gamma = float(input("Enter gamma value (must be in range [0, 1] continuous): "))
+ 
+                if not 0 <= delta <= 1 or not 0 <= gamma <= 1:
+                    print("invalid input, try again")
+
+            pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': gamma, 'r': r, 'delta':delta}
+             
+
 
         if choice == '1':
             # Quick demo
@@ -83,7 +114,6 @@ def interactive_experiment():
 
             # Run a quick version
             env = RepeatedGameEnv(payoff_matrix, horizon=50, state_history=1)
-            pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
             # Create agents
             action_size = 2
@@ -143,15 +173,16 @@ def interactive_experiment():
                 episodes = int(episodes) if episodes.isdigit() else 200
 
                 print(f"\nStarting complete experiment for {game_name}...")
-                all_results = run_complete_experiment(game_name, payoff_matrix, episodes=episodes, ref_setting=ref_setting)
+                all_results = run_complete_experiment(game_name, payoff_matrix, episodes=episodes, ref_setting=ref_setting, pt_params=pt_params)
 
                 # Compare results
                 compare_all_results(all_results, game_name)
             else:
                 print("Invalid choice, using Prisoner's Dilemma")
+                raise ValueError
                 game_name = 'PrisonersDilemma'
                 payoff_matrix = games[game_name]['payoffs']
-                all_results = run_complete_experiment(game_name, payoff_matrix, ref_setting=ref_setting)
+                all_results = run_complete_experiment(game_name, payoff_matrix, ref_setting=ref_setting, pt_params=pt_params)
                 compare_all_results(all_results, game_name)
 
         elif choice == '3':
@@ -169,7 +200,6 @@ def interactive_experiment():
 
                 # Run quick version
                 env = RepeatedGameEnv(payoff_matrix, horizon=50, state_history=2)
-                pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
                 # Test one key matchup
                 agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0, ref_setting=ref_setting)
@@ -239,13 +269,15 @@ def interactive_experiment():
 
             # Select agent types
             print("\nAgent types: Aware_PT, Learning_PT, AI")
-            agent1_type = input("Agent 1 type: ").strip()
-            agent2_type = input("Agent 2 type: ").strip()
-
-            # Validate agent types
             valid_types = ['Aware_PT', 'Learning_PT', 'AI']
-            agent1_type = agent1_type if agent1_type in valid_types else 'Aware_PT'
-            agent2_type = agent2_type if agent2_type in valid_types else 'AI'
+            agent1_type, agent2_type = "", ""
+          
+            while agent1_type not in valid_types or agent2_type not in valid_types:
+                agent1_type = input("Agent 1 type: ").strip()
+                agent2_type = input("Agent 2 type: ").strip()
+
+                if agent1_type not in valid_types or agent2_type not in valid_types:
+                    print("Agents input incorrectly, try again")
 
             # Get parameters
             episodes = input("Episodes (default 200): ").strip()
@@ -255,7 +287,6 @@ def interactive_experiment():
             print(f"\nRunning {agent1_type} vs {agent2_type} in {game_name}...")
 
             env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=2)
-            pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
             # Reference point setting
             # Options = Fixed, EMA, Q, EMAOR
@@ -263,18 +294,27 @@ def interactive_experiment():
 
             # Create agents
             action_size = 2
+            if agent1_type == 'Learning_PT':
+                agent1 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 0, ref_setting=ref_setting, lambda_ref = ref_lambda)
+            elif agent1_type == "AI":
+                agent1 = AIAgent(env.state_size, 2, 2, 0)
+
+            if agent2_type == 'Learning_PT':
+                agent2 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 1, ref_setting=ref_setting, lambda_ref = ref_lambda)
+            elif agent2_type == 'AI':
+                agent2 = AIAgent(env.state_size, 2, 2, 1)
+
             if agent1_type == 'Aware_PT':
                 opp_params = dict()
                 opp_params['opponent_type'] = agent2_type
                 opp_params['opponent_action_size'] = action_size
                 opp_params['opp_ref'] = None
                 if agent2_type != "AI":
-                    opp_params['opp_ref'] = agent2.ref_point
+                    if agent2_type == "Aware_PT":
+                        opp_params['opp_ref'] = 0 # Setting static for now, will have to coordinate with external variable 
+                    else:
+                        opp_params['opp_ref'] = agent2.ref_point
                 agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
-            elif agent1_type == 'Learning_PT':
-                agent1 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 0, ref_setting=ref_setting, lambda_ref = ref_lambda)
-            else:
-                agent1 = AIAgent(env.state_size, 2, 2, 0)
 
             if agent2_type == 'Aware_PT':
                 opp_params = dict()
@@ -284,17 +324,17 @@ def interactive_experiment():
                 if agent1_type != "AI":
                     opp_params['opp_ref'] = agent1.ref_point
                 agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1,opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
-            elif agent2_type == 'Learning_PT':
-                agent2 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 1, ref_setting=ref_setting, lambda_ref = ref_lambda)
-            else:
-                agent2 = AIAgent(env.state_size, 2, 2, 1)
+
 
             # Train
             results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True)
 
             # Analyze
             games_dict = get_all_games()
-            print(payoff_matrix)
+            print('Payoff Matrix:', payoff_matrix)
+            print('Agent 1 Softmax triggers: ', agent1.softmax_counter)
+            print('Agent 2 Softmax triggers: ', agent2.softmax_counter)
+            
             if agent1_type != 'Aware_PT':
                 agent1_q_vals = agent1.get_q_values()
                 print(f"Agent 1 state visits: {agent1.state_visit_counter}")
@@ -335,17 +375,16 @@ def interactive_experiment():
                 episodes = int(episodes) if episodes.isdigit() else 200
                 
                 # Run comparison
-                from repeated_games.baseline import compare_algorithms, plot_comparison
                 
                 print(f"\nComparing Algorithm 1 vs Fictitious Play in {game_name}...")
-                results = compare_algorithms(game_name, payoff_matrix, episodes=episodes)
+                results = compare_algorithms(game_name, payoff_matrix, episodes=episodes, pt_params=pt_params)
                 plot_comparison(results, game_name)
                 
             else:
                 print("Invalid choice, using Prisoner's Dilemma")
+                raise ValueError
                 game_name = 'PrisonersDilemma'
                 payoff_matrix = games[game_name]['payoffs']
-                from repeated_games.baseline import compare_algorithms, plot_comparison
                 results = compare_algorithms(game_name, payoff_matrix, episodes=200)
                 plot_comparison(results, game_name)
 

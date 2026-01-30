@@ -15,6 +15,7 @@ class LearningHumanPTAgent:
         self.action_size = action_size
         self.opp_action_size = opp_action_size
         self.pt = ProspectTheory(**pt_params)
+        print('LH PT PARAMS: ', pt_params)
         self.agent_id = agent_id
         self.ref_point = 0 # Come back to this for more intensive reference point testing
 
@@ -40,6 +41,7 @@ class LearningHumanPTAgent:
             self.q_values[state] = torch.zeros(self.action_size, self.opp_action_size) 
 
         self.state_visit_counter = dict()
+        self.softmax_counter = 0
 
         # Q-learning parameters
         self.gamma = 0.95
@@ -56,14 +58,6 @@ class LearningHumanPTAgent:
         # Track raw vs PT rewards
         self.raw_rewards = []
         self.pt_rewards = []
-
-    # Note sure that we need this
-    def transform_reward(self, reward):
-        """Transform raw reward through PT value function"""
-        pt_reward = self.pt.value_function(reward - self.ref_point)
-        self.raw_rewards.append(reward)
-        self.pt_rewards.append(pt_reward)
-        return pt_reward
 
     def act(self, state):
         # Epsilon exploration (lines 16-17 in alg 1)
@@ -86,7 +80,7 @@ class LearningHumanPTAgent:
 
         ## Check for pathology:
         if gap < self.tau:
-            print("[Debug LH] Softmax activated")
+            self.softmax_counter += 1
             ##Softmax
             ## Normalize 
             vals = action_values - action_values.max()

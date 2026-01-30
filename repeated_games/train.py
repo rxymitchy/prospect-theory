@@ -50,12 +50,6 @@ def train_agents(agent1, agent2, env, episodes=500,
             # Execute step
             next_state, reward1, reward2, done, _ = env.step(action1, action2)
 
-            #Debug logic here
-            states_of_interest = [5, 6, 9]
-
-            if (state in states_of_interest or next_state in states_of_interest) and episode % 100 == 0:
-                print(f"current state: {state}, next state: {next_state}, action1: {action1}, action2: {action2}, reward1: {reward1}, reward2: {reward2}") 
-
             if isinstance(agent1, LearningHumanPTAgent):
                 # Updates
                 agent1.belief_update(state, action2)
@@ -71,11 +65,6 @@ def train_agents(agent1, agent2, env, episodes=500,
                 results['q_values1'].append(q_vals)
                 results['ref_points1'].append(agent1.ref_point)
 
-                # Debug logic, deprecated and will remove soon
-                if q_vals.shape != (2, 2):
-                    print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
-                
-
             elif isinstance(agent1, AIAgent):
                 # Update code here
                 agent1.update(state, action1, next_state, reward1, done)
@@ -85,10 +74,6 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent1.gamma) * q_vals
                 results['q_values1'].append(q_vals)
-
-                # Deprecated
-                if q_vals.shape != (2, 2): 
-                    print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
 
             else: # Aware Human
                 agent1.ref_update(payoff=reward1, state=state, opp_payoff=reward2)
@@ -105,10 +90,6 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent2.gamma) * q_vals
 
-                # Deprecated
-                if q_vals.shape != (2, 2): 
-                    print("BAD SHAPE", type(agent2), q_vals.shape, q_vals)
-
                 # Tracking
                 results['q_values2'].append(q_vals)
                 results['ref_points2'].append(agent2.ref_point)
@@ -119,9 +100,6 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = agent2.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent2.gamma) * q_vals
-                if q_vals.shape != (2, 2):
-                    print("BAD SHAPE", type(agent2), q_vals.shape, q_vals)
-                results['q_values2'].append(q_vals)
 
             else: # Aware Human
                 agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
@@ -242,18 +220,10 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
         q_values1 = np.stack(results['q_values1'])
         print(f'unique q values agent 1: {np.unique(q_values1).size}, q vals 1 shape: {q_values1.shape}')
         error1 = np.mean(np.abs(q_values1 - payoff_matrix[:, :, agent1.agent_id]), axis=(1,2)) 
-        print(f"Error 1 shape: {error1.shape}, error 1 num unique: {np.unique(error1).size}, error 1 max: {error1.max()}, error 1 min: {error1.min()}")
         ax4.plot(error1, label=f'{agent1_type}', linewidth=1)
-        print('agent1 plotted')
         R = payoff_matrix[:, :, agent1.agent_id].astype(np.float32)
         Q = q_values1.astype(np.float32)
 
-        for t in [0, 1, 10, 100, 1000, 19999]:
-            Qt = Q[t]
-            diff = np.abs(Qt - R)
-            print("t", t)
-            print("Q=\n", Qt)
-            print("abs(Q-R)=\n", diff, "mean=", diff.mean())
 
         
     else:
@@ -262,9 +232,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     if len(results['q_values2']) > 0:
         q_values2 = np.stack(results['q_values2'])
-        print(f'unique q values agent 2: {np.unique(q_values2).size}, q vals 2 shape: {q_values2.shape}')
         error2 = np.mean(np.abs(q_values2 - payoff_matrix[:, :, agent2.agent_id]), axis=(1,2)) 
-        print(f"Error 2 shape: {error2.shape}, error 2 num unique: {np.unique(error2).size}, error 2 max: {error2.max()}, error 2 min: {error2.min()}")
         ax4.plot(error2, label=f'{agent2_type}', linewidth=1)
     else:
         q_values2 = []
@@ -370,7 +338,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
                 print(f"  Mean PT reward: {stats['mean_pt']:.3f}")
                 print(f"  PT amplification: {stats['mean_pt']/max(0.001, stats['mean_raw']):.2f}x")
 
-def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting='Fixed'):
+def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting='Fixed', pt_params={}):
     """Run all agent matchups for a game"""
 
     print("\n" + "="*80)
@@ -381,14 +349,6 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
     # Options = Fixed, EMA, Q, 'EMAOR': EMA of Opp rewards
     ref_lambda = 0.9
 
-    # Standard PT parameters 
-    pt_params = {
-        'lambd': 2.25,   # Loss aversion
-        'alpha': 0.88,   # Diminishing sensitivity
-        'gamma': 0.61,   # Probability weighting
-        'r': 0           # Reference point
-    }
-  
     state_history_len = 2
 
     # Define all matchups to test
