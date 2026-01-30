@@ -120,7 +120,7 @@ class LearningHumanPTAgent:
         one_hot[opp_action] = 1
         self.beliefs[state] = self.lam_b * self.beliefs[state] + (1 - self.lam_b) * one_hot
 
-    def ref_update(self, payoff, state):
+    def ref_update(self, payoff, state, opp_payoff):
         if sum(self.state_visit_counter.values()) == 1:
             print(f"update mode: {self.ref_update_mode}")
         if self.ref_update_mode == "EMA":
@@ -130,6 +130,9 @@ class LearningHumanPTAgent:
             weighted_q_val = self.q_values[state] @ self.beliefs[state]
             max_q_val = weighted_q_val.max()
             self.ref_point = (1 - self.gamma) * max_q_val
+
+        elif self.ref_update_mode == 'EMAOR':
+            self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * opp_payoff
 
     def q_value_update(self, state, next_state, action, opp_action, reward, done=False):
         if not torch.is_tensor(reward):

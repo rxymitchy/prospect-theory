@@ -55,8 +55,28 @@ def interactive_experiment():
 
         choice = input("\nEnter choice (1-6): ").strip()
 
+        print("\n" + "="*80)
+        print("SET REFERENCE POINT SETTING")
+        print("="*80)
+        print("\nOptions:")
+        print("1. Fixed (defaults at 0, go into the code to change")
+        print("2. EMA")
+        print("3. Q (updates ref point based on max(Q(S, A)) at the current state. Normalized with (1-gamma) to move from expected discounted return scale to reward scale. ")
+        print("4. EMAOR (Exponential Moving Average over Opponent Rewards, basically tracks how well the opponent is doing not how well the player is doing")
+      
+        ref_setting = ""
+        viable_options = ['Fixed', 'EMA', 'Q', 'EMAOR']
+
+        while ref_setting not in viable_options:        
+            ref_setting = input("\nEnter choice (type exactly as written, defaults to fixed): 'Fixed', 'EMA', 'Q', 'EMAOR': ").strip()
+
+            if ref_setting not in viable_options:
+                print("Failed, please try again.")
+
+
         if choice == '1':
             # Quick demo
+            # Im not updating this branch with the new logic so it will fail.
             print("\nRunning quick demonstration with Prisoner's Dilemma...")
             game_name = 'PrisonersDilemma'
             payoff_matrix = games[game_name]['payoffs']
@@ -67,7 +87,7 @@ def interactive_experiment():
 
             # Create agents
             action_size = 2
-            agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0)
+            agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0, ref_setting=ref_setting)
             agent2 = AIAgent(env.state_size, 2, 1)
 
             print("\nTraining Aware PT vs AI for 100 episodes...")
@@ -123,7 +143,7 @@ def interactive_experiment():
                 episodes = int(episodes) if episodes.isdigit() else 200
 
                 print(f"\nStarting complete experiment for {game_name}...")
-                all_results = run_complete_experiment(game_name, payoff_matrix, episodes=episodes)
+                all_results = run_complete_experiment(game_name, payoff_matrix, episodes=episodes, ref_setting=ref_setting)
 
                 # Compare results
                 compare_all_results(all_results, game_name)
@@ -131,7 +151,7 @@ def interactive_experiment():
                 print("Invalid choice, using Prisoner's Dilemma")
                 game_name = 'PrisonersDilemma'
                 payoff_matrix = games[game_name]['payoffs']
-                all_results = run_complete_experiment(game_name, payoff_matrix)
+                all_results = run_complete_experiment(game_name, payoff_matrix, ref_setting=ref_setting)
                 compare_all_results(all_results, game_name)
 
         elif choice == '3':
@@ -140,6 +160,8 @@ def interactive_experiment():
 
             summary_data = []
             test_games = ['PrisonersDilemma', 'MatchingPennies', 'BattleOfSexes', 'StagHunt', 'Chicken']
+
+            action_size = 2
 
             for game_name in test_games:
                 print(f"\nAnalyzing {game_name}...")
@@ -150,8 +172,8 @@ def interactive_experiment():
                 pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
                 # Test one key matchup
-                agent1 = agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
-                agent2 = AIAgent(env.state_size, 2, 1)
+                agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0, ref_setting=ref_setting)
+                agent2 = AIAgent(env.state_size, 2, 2, 1)
 
                 results = train_agents(agent1, agent2, env, episodes=100, verbose=False)
 
@@ -236,8 +258,7 @@ def interactive_experiment():
             pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
             # Reference point setting
-            # Options = Fixed, EMA, Q
-            ref_setting = 'EMA' 
+            # Options = Fixed, EMA, Q, EMAOR
             ref_lambda = 0.9 
 
             # Create agents

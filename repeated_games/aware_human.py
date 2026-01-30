@@ -15,6 +15,7 @@ class AwareHumanPTAgent:
         self.agent_id = agent_id  # 0 for row player, 1 for column player
         self.lam_r = lambda_ref
         self.ref_update_mode = ref_setting
+        print('AH: ', self.ref_update_mode)
 
         self.ref_point = 0 # amenable to changes if we want to test different ref points
         self.tau = 0.1 # Also amenable
@@ -101,9 +102,12 @@ class AwareHumanPTAgent:
 
         return player_best_response
 
-    def ref_update(self, payoff, state):
+    def ref_update(self, payoff, state, opp_payoff):
         if self.ref_update_mode == "EMA":
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
 
         elif self.ref_update_mode == 'Q':
             self.ref_point = self.payoff_matrix.max()
+
+        elif self.ref_update_mode == 'EMAOR':
+            self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * opp_payoff

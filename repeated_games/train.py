@@ -57,14 +57,21 @@ def train_agents(agent1, agent2, env, episodes=500,
                 print(f"current state: {state}, next state: {next_state}, action1: {action1}, action2: {action2}, reward1: {reward1}, reward2: {reward2}") 
 
             if isinstance(agent1, LearningHumanPTAgent):
+                # Updates
                 agent1.belief_update(state, action2)
-                agent1.ref_update(reward1, state)
+                agent1.ref_update(payoff=reward1, state=state, opp_payoff=reward2)
                 agent1.q_value_update(state, next_state, action1, action2, reward1, done)
+
+                # Get q vals, normalize by multiplying by 1 - gamma to remove future discounting
                 q_vals = agent1.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)  
                 q_vals = (1 - agent1.gamma) * q_vals
+
+                # Track values of interest
                 results['q_values1'].append(q_vals)
                 results['ref_points1'].append(agent1.ref_point)
+
+                # Debug logic, deprecated and will remove soon
                 if q_vals.shape != (2, 2):
                     print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
                 
@@ -72,26 +79,37 @@ def train_agents(agent1, agent2, env, episodes=500,
             elif isinstance(agent1, AIAgent):
                 # Update code here
                 agent1.update(state, action1, next_state, reward1, done)
+
+                # Get q vals, normalize by multiplying by 1 - gamma to remove future discounting
                 q_vals = agent1.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent1.gamma) * q_vals
                 results['q_values1'].append(q_vals)
+
+                # Deprecated
                 if q_vals.shape != (2, 2): 
                     print("BAD SHAPE", type(agent1), q_vals.shape, q_vals)
 
             else: # Aware Human
-                agent1.ref_update(reward1, state)
+                agent1.ref_update(payoff=reward1, state=state, opp_payoff=reward2)
                 results['ref_points1'].append(agent1.ref_point)
 
             if isinstance(agent2, LearningHumanPTAgent):
+                # Update
                 agent2.belief_update(state, action1)
-                agent2.ref_update(reward2, state)
+                agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
                 agent2.q_value_update(state, next_state, action2, action1, reward2, done)
+
+                # Get q vals, normalize by multiplying by 1 - gamma to remove future discounting
                 q_vals = agent2.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent2.gamma) * q_vals
+
+                # Deprecated
                 if q_vals.shape != (2, 2): 
                     print("BAD SHAPE", type(agent2), q_vals.shape, q_vals)
+
+                # Tracking
                 results['q_values2'].append(q_vals)
                 results['ref_points2'].append(agent2.ref_point)
 
@@ -106,7 +124,7 @@ def train_agents(agent1, agent2, env, episodes=500,
                 results['q_values2'].append(q_vals)
 
             else: # Aware Human
-                agent2.ref_update(reward2, state)
+                agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
                 results['ref_points2'].append(agent2.ref_point)
 
             # Store results
@@ -352,7 +370,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
                 print(f"  Mean PT reward: {stats['mean_pt']:.3f}")
                 print(f"  PT amplification: {stats['mean_pt']/max(0.001, stats['mean_raw']):.2f}x")
 
-def run_complete_experiment(game_name, payoff_matrix, episodes=300):
+def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting='Fixed'):
     """Run all agent matchups for a game"""
 
     print("\n" + "="*80)
@@ -360,8 +378,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300):
     print("="*80)
 
     # Reference point setting
-    # Options = Fixed, EMA, Q
-    ref_setting = 'Q'
+    # Options = Fixed, EMA, Q, 'EMAOR': EMA of Opp rewards
     ref_lambda = 0.9
 
     # Standard PT parameters 
