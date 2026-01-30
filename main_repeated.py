@@ -235,6 +235,11 @@ def interactive_experiment():
             env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=2)
             pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': 0}
 
+            # Reference point setting
+            # Options = Fixed, EMA, Q
+            ref_setting = 'EMA' 
+            ref_lambda = 0.9 
+
             # Create agents
             action_size = 2
             if agent1_type == 'Aware_PT':
@@ -244,9 +249,9 @@ def interactive_experiment():
                 opp_params['opp_ref'] = None
                 if agent2_type != "AI":
                     opp_params['opp_ref'] = agent2.ref_point
-                agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params)
+                agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
             elif agent1_type == 'Learning_PT':
-                agent1 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 0)
+                agent1 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 0, ref_setting=ref_setting, lambda_ref = ref_lambda)
             else:
                 agent1 = AIAgent(env.state_size, 2, 2, 0)
 
@@ -257,9 +262,9 @@ def interactive_experiment():
                 opp_params['opp_ref'] = None
                 if agent1_type != "AI":
                     opp_params['opp_ref'] = agent1.ref_point
-                agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1,opp_params=opp_params)
+                agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1,opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
             elif agent2_type == 'Learning_PT':
-                agent2 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 1)
+                agent2 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 1, ref_setting=ref_setting, lambda_ref = ref_lambda)
             else:
                 agent2 = AIAgent(env.state_size, 2, 2, 1)
 

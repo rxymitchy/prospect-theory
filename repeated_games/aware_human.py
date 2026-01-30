@@ -9,10 +9,12 @@ class AwareHumanPTAgent:
     Knows the game structure and uses PT to compute best responses
     """
 
-    def __init__(self, payoff_matrix, pt_params, action_size, state_size, agent_id=0, opp_params=None):
+    def __init__(self, payoff_matrix, pt_params, action_size, state_size, agent_id=0, opp_params=None, ref_setting='Fixed', lambda_ref=0.95):
         self.payoff_matrix = payoff_matrix
         self.pt = ProspectTheory(**pt_params)
         self.agent_id = agent_id  # 0 for row player, 1 for column player
+        self.lam_r = lambda_ref
+        self.ref_update_mode = ref_setting
 
         self.ref_point = 0 # amenable to changes if we want to test different ref points
         self.tau = 0.1 # Also amenable
@@ -98,3 +100,10 @@ class AwareHumanPTAgent:
         player_best_response = self.get_best_response(matrix, opp_best_responses)
 
         return player_best_response
+
+    def ref_update(self, payoff, state):
+        if self.ref_update_mode == "EMA":
+            self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
+
+        elif self.ref_update_mode == 'Q':
+            self.ref_point = self.payoff_matrix.max()

@@ -10,7 +10,7 @@ class LearningHumanPTAgent:
     Transforms rewards through PT
     """
 
-    def __init__(self, state_size, action_size, opp_action_size, pt_params, agent_id=0):
+    def __init__(self, state_size, action_size, opp_action_size, pt_params, agent_id=0, ref_setting='Fixed', lambda_ref=0.95):
         self.state_size = state_size
         self.action_size = action_size
         self.opp_action_size = opp_action_size
@@ -24,10 +24,11 @@ class LearningHumanPTAgent:
 
         # Initialize belief and reference point lambda parameters (subject to tuning)
         self.lam_b = 0.95
-        self.lam_r = 0.99
+        self.lam_r = lambda_ref
 
         # Set reference point update mode:
-        self.ref_update_mode = "EMA" # Alternate options: fixed, Q^{EU}
+        self.ref_update_mode = ref_setting # options: Fixed, EMA, Q
+        print(self.ref_update_mode, ref_setting)
        
         # Add an entry for each state populated with uniform probabilities over opponent action set size
         # And initialize q values
@@ -119,9 +120,16 @@ class LearningHumanPTAgent:
         one_hot[opp_action] = 1
         self.beliefs[state] = self.lam_b * self.beliefs[state] + (1 - self.lam_b) * one_hot
 
-    def ref_update(self, payoff):
+    def ref_update(self, payoff, state):
+        if sum(self.state_visit_counter.values()) == 1:
+            print(f"update mode: {self.ref_update_mode}")
         if self.ref_update_mode == "EMA":
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
+
+        elif self.ref_update_mode == 'Q':
+            weighted_q_val = self.q_values[state] @ self.beliefs[state]
+            max_q_val = weighted_q_val.max()
+            self.ref_point = (1 - self.gamma) * max_q_val
 
     def q_value_update(self, state, next_state, action, opp_action, reward, done=False):
         if not torch.is_tensor(reward):
@@ -157,7 +165,7 @@ class LearningHumanPTAgent:
         q_value = self.q_values[state][action][opp_action]
 
         if done:
-            optimal_next_q_val = 0
+            optimal_next_q_value = torch.tensor(0.0, dtype=q_value.dtype)
 
         # Calculate delta in untransformed reward space
         delta = reward + self.gamma * optimal_next_q_value - q_value 
