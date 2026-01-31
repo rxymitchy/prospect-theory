@@ -6,11 +6,12 @@ from .game_env import RepeatedGameEnv
 from .utils import get_all_games
 import numpy as np
 import pandas as pd
+import time
 
 from matplotlib.ticker import FuncFormatter
 
 def train_agents(agent1, agent2, env, episodes=500,
-                 exploration_decay=0.995, verbose=True):
+                 exploration_decay=0.995, verbose=True, game_name=''):
     """
     Train two agents against each other
     """
@@ -30,6 +31,12 @@ def train_agents(agent1, agent2, env, episodes=500,
         'ref_points2': []
     }
     joint_counts = np.zeros((agent1.action_size,agent2.action_size), dtype=int)
+
+    start_time = time.time()
+    last_time = 0
+
+    log_every = 100
+    global_step = 0
 
     for episode in range(episodes):
         state = env.reset()
@@ -62,8 +69,17 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = (1 - agent1.gamma) * q_vals
 
                 # Track values of interest
-                results['q_values1'].append(q_vals)
-                results['ref_points1'].append(agent1.ref_point)
+
+                # Tracking
+                if game_name == 'Double Auction Game':
+                    if global_step % log_every == 0:
+                        results['q_values1'].append(q_vals)
+                        results['ref_points1'].append(agent1.ref_point)
+                else:
+                    results['q_values1'].append(q_vals)
+                    results['ref_points1'].append(agent1.ref_point)
+
+                del q_vals
 
             elif isinstance(agent1, AIAgent):
                 # Update code here
@@ -74,7 +90,14 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent1.gamma) * q_vals
 
-                results['q_values1'].append(q_vals)
+                # Tracking
+                if game_name == 'Double Auction Game':
+                    if global_step % log_every == 0:
+                        results['q_values1'].append(q_vals)
+                else:
+                    results['q_values1'].append(q_vals)
+                
+                del q_vals
 
             else: # Aware Human
                 agent1.ref_update(payoff=reward1, state=state, opp_payoff=reward2)
@@ -92,8 +115,14 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = (1 - agent2.gamma) * q_vals
 
                 # Tracking
-                results['q_values2'].append(q_vals)
-                results['ref_points2'].append(agent2.ref_point)
+                if game_name == 'Double Auction Game':
+                    if global_step % log_every == 0:
+                        results['q_values2'].append(q_vals)
+                        results['ref_points2'].append(agent2.ref_point)
+                else:
+                    results['q_values2'].append(q_vals)
+                    results['ref_points2'].append(agent2.ref_point)
+                del q_vals
 
             elif isinstance(agent2, AIAgent):
                 # Update code here
@@ -102,15 +131,28 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent2.gamma) * q_vals
 
+                # Tracking
+                if game_name == 'Double Auction Game':
+                    if global_step % log_every == 0:
+                        results['q_values2'].append(q_vals)
+                else:
+                    results['q_values2'].append(q_vals)
+
+                del q_vals
+
             else: # Aware Human
                 agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
                 results['ref_points2'].append(agent2.ref_point)
 
+            global_step += 1
+ 
             # Store results
             episode_rewards1 += reward1
             episode_rewards2 += reward2
-            episode_actions1.append(action1)
-            episode_actions2.append(action2)
+
+            if game_name != 'Double Auction Game':
+                episode_actions1.append(action1)
+                episode_actions2.append(action2)
 
             joint_counts[action1, action2] += 1
 
@@ -121,17 +163,21 @@ def train_agents(agent1, agent2, env, episodes=500,
 
         # Store episode results
         print("out of loop")
-        steps = len(episode_actions1)
+        steps = env.horizon
         avg_reward1 = episode_rewards1 / steps
         avg_reward2 = episode_rewards2 / steps
 
         results['rewards1'].append(episode_rewards1)
         results['rewards2'].append(episode_rewards2)
-        results['actions1'].append(episode_actions1)
-        results['actions2'].append(episode_actions2)
+
+        if game_name != 'Double Auction Game':
+            results['actions1'].append(episode_actions1)
+            results['actions2'].append(episode_actions2)
+
         results['avg_rewards1'].append(avg_reward1)
         results['avg_rewards2'].append(avg_reward2)
 
+        
         # Decay exploration
         if isinstance(agent1, (LearningHumanPTAgent, AIAgent)):
             agent1.epsilon = max(agent1.epsilon * exploration_decay, agent1.epsilon_min)
@@ -150,9 +196,13 @@ def train_agents(agent1, agent2, env, episodes=500,
         # Progress update
         if verbose and (episode + 1) % 100 == 0:
             print(f"  Episode {episode + 1}/{episodes}: "
-                  f"Avg rewards = {avg_reward1:.3f}, {avg_reward2:.3f}")
+                  f"Avg rewards = {avg_reward1:.3f}, {avg_reward2:.3f}"
+                  f"\n Time since start = {time.time() - start_time}, Time this 100 episodes = {time.time() - last_time}")
+
+        last_time = time.time()
 
     print("joint actions: ", joint_counts)
+    results['joint_actions'] = joint_counts
 
     return results
 
@@ -181,7 +231,12 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     # 2. Final strategy patterns
     ax2 = plt.subplot(2, 3, 2)
-    k = 100
+
+    if game_name != 'Double Auction Game':
+        k = 100
+    else:
+        k = 1
+
     if len(results['ref_points1']) > 0:
         ref_points1 = results['ref_points1']
         ax2.plot(ref_points1[::k], label=f'{agent1_type}')
@@ -201,22 +256,25 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     # 3. Action distribution
     ax3 = plt.subplot(2, 3, 3)
-    if results['actions1'] and game_name != 'Double Auction Game':
-        # Last 10 episodes
-        recent_actions1 = [a for ep in results['actions1'][-10:] for a in ep]
-        recent_actions2 = [a for ep in results['actions2'][-10:] for a in ep]
+    joint_actions = results['joint_actions']
+    im = ax3.imshow(joint_actions, aspect='auto', origin='lower')
+    fig.colorbar(im, ax=ax3, label='Count')
 
-        bins = np.arange(-0.5, 2.5, 1)
-        ax3.hist([recent_actions1, recent_actions2], bins=bins,
-                label=[f'{agent1_type}', f'{agent2_type}'],
-                alpha=0.7, align='mid')
-        ax3.set_xlabel('Action')
-        ax3.set_ylabel('Frequency')
-        ax3.set_xticks([0, 1])
-        ax3.set_xticklabels(actions)
-        ax3.set_title('Action Distribution (last 10 episodes)')
-        ax3.legend()
-        ax3.grid(True, alpha=0.3)
+    ax3.set_xticks(np.arange(joint_actions.shape[1]))
+    ax3.set_xticklabels(np.arange(1, joint_actions.shape[1] + 1))
+
+    ax3.set_yticks(np.arange(joint_actions.shape[0]))
+    ax3.set_yticklabels(np.arange(1, joint_actions.shape[0] + 1))
+
+    if game_name == 'Double Auction Game':
+        ax3.set_xlabel(f'Seller ({agent2_type})')
+        ax3.set_ylabel(f'Buyer ({agent1_type})')
+
+    else:
+        ax3.set_xlabel(f'{agent2_type}')
+        ax3.set_ylabel(f'{agent1_type})')
+
+    ax3.set_title("Joint Action Heatmap")
 
     # 4. Strategy evolution (for aware PT)
     ax4 = plt.subplot(2, 3, 4)
@@ -224,6 +282,8 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
         q_values1 = np.stack(results['q_values1'])
         print(f'unique q values agent 1: {np.unique(q_values1).size}, q vals 1 shape: {q_values1.shape}')
         error1 = np.mean(np.abs(q_values1 - payoff_matrix[:, :, agent1.agent_id]), axis=(1,2)) 
+        if game_name == 'Double Auction Game':
+            print(f"Error 1 shape: {error1.shape}, error 1 num unique: {np.unique(error1).size}, error 1 max: {error1.max()}, error 1 min: {error1.min()}")
         ax4.plot(error1, label=f'{agent1_type}', linewidth=1)
         
     else:
@@ -233,6 +293,8 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     if len(results['q_values2']) > 0:
         q_values2 = np.stack(results['q_values2'])
         error2 = np.mean(np.abs(q_values2 - payoff_matrix[:, :, agent2.agent_id]), axis=(1,2)) 
+        if game_name == 'Double Auction Game':
+            print(f"Error 2 shape: {error2.shape}, error 2 num unique: {np.unique(error2).size}, error 2 max: {error2.max()}, error 2 min: {error2.min()}")
         ax4.plot(error2, label=f'{agent2_type}', linewidth=1)
     else:
         q_values2 = []
@@ -258,7 +320,11 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     # 6. Reward distribution
     ax6 = plt.subplot(2, 3, 6)
-    k = 100
+    if game_name != 'Double Auction Game':
+        k = 100
+    else:
+        k = 1
+
     if len(results['q_values1']) > 1:
         q_values1 = np.stack(results['q_values1'])
         q_values1, q_values1_copy = q_values1[1:], q_values1[:-1]        
@@ -405,7 +471,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
 
         # Train the matchup
         print(f"Training {episodes} episodes...")
-        results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True, ref_setting=ref_setting)
+        results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True, game_name=game_name)
 
         # Store results
         matchup_key = f"{agent1_type}_vs_{agent2_type}"

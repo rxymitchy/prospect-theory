@@ -477,7 +477,7 @@ def interactive_experiment():
 
 
             # Train
-            results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True)
+            results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True, game_name=game_name)
  
             payoff_matrix = env.build_payoff_matrix() 
 
@@ -497,10 +497,10 @@ def interactive_experiment():
                 print(f"Agent 2 state visits: {agent2.state_visit_counter}")
 
 
-            if hasattr(agent1, "beliefs"):
+            if hasattr(agent1, "beliefs") and price_range < 5:
                 print(f"Agent 1 beliefs: {agent1.beliefs}")
 
-            if hasattr(agent2, "beliefs"):
+            if hasattr(agent2, "beliefs") and price_range < 5:
                 print(f"Agent 2 beliefs: {agent2.beliefs}")
 
             analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix)
