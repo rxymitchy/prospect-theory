@@ -55,7 +55,7 @@ def interactive_experiment():
         print("6. Run Double Auction Game (Still Under Construction)")
         print("7. Exit")
 
-        choice = input("\nEnter choice (1-6): ").strip()
+        choice = input("\nEnter choice (1-7): ").strip()
 
         print("\n" + "="*80)
         print("SET REFERENCE POINT SETTING")
@@ -394,6 +394,7 @@ def interactive_experiment():
             print("\nDouble Auction Game")
             print("-"*40)
             game_name = "Double Auction Game"
+            games_dict = ""
 
             # Range of prices the double auction game will operate in
             price_range = 0
@@ -435,23 +436,23 @@ def interactive_experiment():
             # Run custom matchup
             print(f"\nRunning {agent1_type} vs {agent2_type} in {game_name}...")
 
-            env = DoubleAuction(k=price_range, valuation=valuation, cost=cost)
+            env = DoubleAuction(k=price_range, valuation=valuation, cost=cost, horizon=100, state_history=2)
 
             # Reference point setting
             # Options = Fixed, EMA, Q, EMAOR
             ref_lambda = 0.9
 
             # Create agents
-            action_size = 2
+            action_size = price_range
             if agent1_type == 'Learning_PT':
-                agent1 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 0, ref_setting=ref_setting, lambda_ref = ref_lambda)
+                agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, 0, ref_setting=ref_setting, lambda_ref = ref_lambda)
             elif agent1_type == "AI":
-                agent1 = AIAgent(env.state_size, 2, 2, 0)
+                agent1 = AIAgent(env.state_size, action_size, action_size, 0)
 
             if agent2_type == 'Learning_PT':
-                agent2 = LearningHumanPTAgent(env.state_size, 2, 2, pt_params, 1, ref_setting=ref_setting, lambda_ref = ref_lambda)
+                agent2 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, 1, ref_setting=ref_setting, lambda_ref = ref_lambda)
             elif agent2_type == 'AI':
-                agent2 = AIAgent(env.state_size, 2, 2, 1)
+                agent2 = AIAgent(env.state_size, action_size, action_size, 1)
 
             if agent1_type == 'Aware_PT':
                 opp_params = dict()
@@ -477,10 +478,10 @@ def interactive_experiment():
 
             # Train
             results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True)
+ 
+            payoff_matrix = env.build_payoff_matrix() 
 
             # Analyze
-            games_dict = get_all_games()
-            print('Payoff Matrix:', payoff_matrix)
             print('Agent 1 Softmax triggers: ', agent1.softmax_counter)
             print('Agent 2 Softmax triggers: ', agent2.softmax_counter)
 

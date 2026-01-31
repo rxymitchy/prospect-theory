@@ -1,27 +1,77 @@
+import numpy as np
 # Double Auction Game
 class DoubleAuction:
-  def __init__(self, k=10, valuation=6, cost=4):
+  def __init__(self, k=10, valuation=6, cost=4, horizon=100, state_history=2):
     self.A = set(range(1, k+1))
     self.B = set(range(1, k+1))
     self.k = k
 
     self.valuation = valuation
     self.cost = cost
+    
+    self.history = []
+    self.state_history = state_history
+    self.state_size = (self.k**2) ** self.state_history
+    self.round = 0
+
+    self.horizon = horizon
+
+  # We need a ground truth payoff table for analysis
+  def build_payoff_matrix(self):
+    payoff_matrix = np.zeros((self.k, self.k, 2))
+
+    for i in range(self.k):
+      for j in range(self.k):
+        # bids and asks are 1 indexed
+        bid = i + 1
+        ask = j + 1
+        if bid >= ask:
+          price = (bid + ask) / 2
+          buyer_payoff = self.valuation - price
+          seller_payoff = price - self.cost
+          payoff_matrix[i, j] = (buyer_payoff, seller_payoff)
+        else:
+          payoff_matrix[i, j] = (0, 0)
+
+    return payoff_matrix
 
   def reset(self):
-    self.valuation = np.random.randint(0, 101)
-    self.cost = np.random.randint(0, 101)
+    self.round = 0
+    self.history = []
+    return self._get_state()
+
+  def _get_state(self):
+
+    state = 0
+    for i in range(len(self.history)):
+        if i < self.state_history:
+            a1, a2 = self.history[-(i+1)]
+            pair = (a1-1) * self.k + (a2-1)
+        else:
+            pair = 0
+ 
+        state += pair * ((self.k ** 2) ** i) 
+
+    return int(state)
 
   def step(self, bid, ask):
+    # The actions are 0 indexed, bids and asks are 1 indexed
+    bid += 1
+    ask += 1
 
-    assert bid in self.B and ask in self.A
+    assert bid in self.B and ask in self.A, f"bid: {bid}, ask: {ask}"
+  
+    self.history.append((bid, ask))
+    self.round += 1
+
+    done = self.round >= self.horizon
 
     # If a successful trade
     if bid >= ask:
       price = (bid + ask) / 2
       buyer_payoff = self.valuation - price
       seller_payoff = price - self.cost
-      return buyer_payoff, seller_payoff
+      return self._get_state(), buyer_payoff, seller_payoff, done, {}
 
     else:
-      return 0, 0
+      return self._get_state(), 0, 0, done, {}

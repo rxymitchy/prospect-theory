@@ -29,7 +29,7 @@ def train_agents(agent1, agent2, env, episodes=500,
         'ref_points1': [],
         'ref_points2': []
     }
-    joint_counts = np.zeros((2,2), dtype=int)
+    joint_counts = np.zeros((agent1.action_size,agent2.action_size), dtype=int)
 
     for episode in range(episodes):
         state = env.reset()
@@ -73,6 +73,7 @@ def train_agents(agent1, agent2, env, episodes=500,
                 q_vals = agent1.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)
                 q_vals = (1 - agent1.gamma) * q_vals
+
                 results['q_values1'].append(q_vals)
 
             else: # Aware Human
@@ -119,6 +120,7 @@ def train_agents(agent1, agent2, env, episodes=500,
                 break
 
         # Store episode results
+        print("out of loop")
         steps = len(episode_actions1)
         avg_reward1 = episode_rewards1 / steps
         avg_reward2 = episode_rewards2 / steps
@@ -156,8 +158,10 @@ def train_agents(agent1, agent2, env, episodes=500,
 
 def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix):
     """Comprehensive analysis of a matchup"""
-
-    actions = games_dict[game_name]['actions']
+    if game_name != 'Double Auction Game':
+        actions = games_dict[game_name]['actions']
+    else:
+        actions = None
 
     fig = plt.figure(figsize=(15, 10))
 
@@ -197,7 +201,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     # 3. Action distribution
     ax3 = plt.subplot(2, 3, 3)
-    if results['actions1']:
+    if results['actions1'] and game_name != 'Double Auction Game':
         # Last 10 episodes
         recent_actions1 = [a for ep in results['actions1'][-10:] for a in ep]
         recent_actions2 = [a for ep in results['actions2'][-10:] for a in ep]
@@ -221,10 +225,6 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
         print(f'unique q values agent 1: {np.unique(q_values1).size}, q vals 1 shape: {q_values1.shape}')
         error1 = np.mean(np.abs(q_values1 - payoff_matrix[:, :, agent1.agent_id]), axis=(1,2)) 
         ax4.plot(error1, label=f'{agent1_type}', linewidth=1)
-        R = payoff_matrix[:, :, agent1.agent_id].astype(np.float32)
-        Q = q_values1.astype(np.float32)
-
-
         
     else:
         q_values1 = []
@@ -312,7 +312,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
                 print("  ⚠ Strategies still varying")
 
         # Action frequencies
-        if results['actions1']:
+        if results['actions1'] and game_name != 'Double Auction Game':
             last_10_actions1 = [a for ep in results['actions1'][-10:] for a in ep]
             last_10_actions2 = [a for ep in results['actions2'][-10:] for a in ep]
 
