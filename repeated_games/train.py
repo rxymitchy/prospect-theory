@@ -184,14 +184,6 @@ def train_agents(agent1, agent2, env, episodes=500,
 
         if isinstance(agent2, (LearningHumanPTAgent, AIAgent)):
             agent2.epsilon = max(agent2.epsilon * exploration_decay, agent2.epsilon_min)
- 
-        if isinstance(agent1, AwareHumanPTAgent):
-            if not isinstance(agent2, AwareHumanPTAgent):
-                agent1.opp_epsilon = agent2.epsilon
-
-        if isinstance(agent2, AwareHumanPTAgent):
-            if not isinstance(agent1, AwareHumanPTAgent):
-                agent2.opp_epsilon = agent1.epsilon
 
         # Progress update
         if verbose and (episode + 1) % 100 == 0:
