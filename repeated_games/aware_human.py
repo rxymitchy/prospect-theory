@@ -95,7 +95,7 @@ class AwareHumanPTAgent:
 
         return best_response
 
-    def act(self, state):
+    def act(self, state=None):
         matrix = self.payoff_matrix
         if self.agent_id == 1:
             matrix = matrix.transpose(1, 0, 2)

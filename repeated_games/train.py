@@ -10,7 +10,7 @@ import time
 
 from matplotlib.ticker import FuncFormatter
 
-def train_agents(agent1, agent2, env, episodes=500,
+def train_agents(agent1, agent2, env, br_dict, episodes=500,
                  exploration_decay=0.995, verbose=True, game_name=''):
     """
     Train two agents against each other
@@ -28,7 +28,9 @@ def train_agents(agent1, agent2, env, episodes=500,
         'q_values1': [],
         'q_values2':[],
         'ref_points1': [],
-        'ref_points2': []
+        'ref_points2': [],
+        'best_responses1': [],
+        'best_responses2': [],
     }
     joint_counts = np.zeros((agent1.action_size,agent2.action_size), dtype=int)
 
@@ -38,6 +40,19 @@ def train_agents(agent1, agent2, env, episodes=500,
     log_every = 100
     global_step = 0
 
+    # Defined to initialize BR agents, agent1 and agent 2 actions sizes always the same for this setup
+    action_size = agent1.action_size
+    if game_name == 'Double Auction Game':
+        payoff_matrix = env.build_payoff_matrix()
+
+    else:
+        payoff_matrix = env.payoff_matrix
+
+    agent1_type, agent2_type, pt_params, ref_setting, ref_lambda = br_dict['agent1_type'], br_dict['agent2_type'], br_dict['pt_params'], br_dict['ref_setting'], br_dict['ref_lambda']
+ 
+    # For convergence tracking
+    br1, br2 = best_responders(agent1, agent2, agent1_type, agent2_type, action_size, payoff_matrix, pt_params, env, ref_setting, ref_lambda)
+
     for episode in range(episodes):
         state = env.reset()
         episode_rewards1 = 0
@@ -46,6 +61,8 @@ def train_agents(agent1, agent2, env, episodes=500,
         episode_actions2 = []
         episode_q_values1 = []
         episode_q_values2 = []
+        episode_br1 = []
+        episode_br2 = []
 
         for _ in range(env.horizon):
             # Agent 1 chooses action
@@ -102,6 +119,7 @@ def train_agents(agent1, agent2, env, episodes=500,
             else: # Aware Human
                 agent1.ref_update(payoff=reward1, state=state, opp_payoff=reward2)
                 results['ref_points1'].append(agent1.ref_point)
+                
 
             if isinstance(agent2, LearningHumanPTAgent):
                 # Update
@@ -144,15 +162,33 @@ def train_agents(agent1, agent2, env, episodes=500,
                 agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
                 results['ref_points2'].append(agent2.ref_point)
 
+            # Make sure best reply convergence tracking is conditioned on ref point changes
+            br1.ref_update(payoff=reward1, state=state, opp_payoff=reward2)
+            br2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
+
+            # Then we update the opp reference point in BR and AH 
+            if not isinstance(agent2, AIAgent):
+                br1.opp_ref = agent2.ref_point
+                if isinstance(agent1, AwareHumanPTAgent):
+                    agent1.opp_ref = agent2.ref_point
+
+            if not isinstance(agent1, AIAgent):
+                br2.opp_ref = agent1.ref_point
+                if isinstance(agent2, AwareHumanPTAgent):
+                    agent2.opp_ref = agent1.ref_point
+
             global_step += 1
  
             # Store results
             episode_rewards1 += reward1
             episode_rewards2 += reward2
 
-            if game_name != 'Double Auction Game':
-                episode_actions1.append(action1)
-                episode_actions2.append(action2)
+            episode_actions1.append(action1)
+            episode_actions2.append(action2)
+
+            episode_br1.append(br1.act())
+            episode_br2.append(br2.act())
+           
 
             joint_counts[action1, action2] += 1
 
@@ -170,13 +206,14 @@ def train_agents(agent1, agent2, env, episodes=500,
         results['rewards1'].append(episode_rewards1)
         results['rewards2'].append(episode_rewards2)
 
-        if game_name != 'Double Auction Game':
-            results['actions1'].append(episode_actions1)
-            results['actions2'].append(episode_actions2)
+        results['actions1'].append(episode_actions1)
+        results['actions2'].append(episode_actions2)
 
         results['avg_rewards1'].append(avg_reward1)
         results['avg_rewards2'].append(avg_reward2)
 
+        results['best_responses1'].append(episode_br1)
+        results['best_responses2'].append(episode_br2)
         
         # Decay exploration
         if isinstance(agent1, (LearningHumanPTAgent, AIAgent)):
@@ -198,7 +235,7 @@ def train_agents(agent1, agent2, env, episodes=500,
 
     return results
 
-def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix):
+def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params):
     """Comprehensive analysis of a matchup"""
     if game_name != 'Double Auction Game':
         actions = games_dict[game_name]['actions']
@@ -208,7 +245,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     fig = plt.figure(figsize=(15, 10))
 
     # 1. Learning curves
-    ax1 = plt.subplot(2, 3, 1)
+    ax1 = plt.subplot(3, 3, 1)
     window = 20
     smoothed1 = np.convolve(results['avg_rewards1'], np.ones(window)/window, mode='valid')
     smoothed2 = np.convolve(results['avg_rewards2'], np.ones(window)/window, mode='valid')
@@ -222,7 +259,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax1.grid(True, alpha=0.3)
 
     # 2. Final strategy patterns
-    ax2 = plt.subplot(2, 3, 2)
+    ax2 = plt.subplot(3, 3, 2)
 
     if game_name != 'Double Auction Game':
         k = 100
@@ -247,7 +284,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax2.grid(True, alpha=0.3)
 
     # 3. Action distribution
-    ax3 = plt.subplot(2, 3, 3)
+    ax3 = plt.subplot(3, 3, 3)
     joint_actions = results['joint_actions']
     im = ax3.imshow(joint_actions, aspect='auto', origin='lower')
     fig.colorbar(im, ax=ax3, label='Count')
@@ -269,7 +306,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax3.set_title("Joint Action Heatmap")
 
     # 4. Strategy evolution (for aware PT)
-    ax4 = plt.subplot(2, 3, 4)
+    ax4 = plt.subplot(3, 3, 4)
     if len(results['q_values1']) > 0:
         q_values1 = np.stack(results['q_values1'])
         print(f'unique q values agent 1: {np.unique(q_values1).size}, q vals 1 shape: {q_values1.shape}')
@@ -298,7 +335,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax4.legend()
     
     # 5. Cumulative rewards
-    ax5 = plt.subplot(2, 3, 5)
+    ax5 = plt.subplot(3, 3, 5)
     cumulative1 = np.cumsum(results['rewards1'])
     cumulative2 = np.cumsum(results['rewards2'])
 
@@ -311,7 +348,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax5.grid(True, alpha=0.3)
 
     # 6. Reward distribution
-    ax6 = plt.subplot(2, 3, 6)
+    ax6 = plt.subplot(3, 3, 6)
     if game_name != 'Double Auction Game':
         k = 100
     else:
@@ -340,6 +377,63 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     )
     ax6.legend()
     ax6.grid(True, alpha=0.3)
+
+    ax7 = plt.subplot(3, 3, 7)
+    br1 = np.array(results['best_responses1'])
+    br2 = np.array(results['best_responses2'])
+
+    agent1_actions = np.array(results['actions1'])
+    agent2_actions = np.array(results['actions2'])
+
+    action_size = payoff_matrix.shape[0]
+
+    assert len(br1) == len(br2) == len(agent1_actions) == len(agent2_actions), f"Lengths of lists don't match."
+    T0 = len(br1[0])
+    assert all(len(ep) == T0 for ep in br1), "br1 episodes have different lengths"
+    assert all(len(ep) == T0 for ep in br2), "br2 episodes have different lengths"
+    assert all(len(ep) == T0 for ep in agent1_actions), "agent1 episodes have different lengths"
+    assert all(len(ep) == T0 for ep in agent2_actions), "agent2 episodes have different lengths"
+
+    diff1 = []
+    diff2 = []
+
+    # Calculate similarity = 1 - TotalVariationDistance(a_i, br_i) 
+    for episode in range(len(br1)):
+        assert len(agent1_actions[episode]) == len(br1[episode]) == len(agent2_actions[episode]) == len(br2[episode]), "Episode list lengths don't match"
+        br1_pi = np.zeros(action_size)
+        br2_pi = np.zeros(action_size)
+        a1_pi = np.zeros(action_size)
+        a2_pi = np.zeros(action_size)
+
+        for action in range(action_size):
+            br1_pi[action] = sum(br1[episode] == action) / T0
+            br2_pi[action] = sum(br2[episode] == action) / T0
+            a1_pi[action] = sum(agent1_actions[episode] == action) / T0
+            a2_pi[action] = sum(agent2_actions[episode] == action) / T0
+
+        total_variation1 = 0
+        total_variation2 = 0
+
+        for action in range(action_size):
+            total_variation1 += abs(br1_pi[action] - a1_pi[action])
+            total_variation2 += abs(br2_pi[action] - a2_pi[action])
+
+        similarity1 = 1 - 0.5 * total_variation1
+        similarity2 = 1 - 0.5 * total_variation2
+
+        diff1.append(similarity1)
+        diff2.append(similarity2)
+
+    ax7.plot(diff1, label=f'{agent1_type}')
+    ax7.plot(diff2, label=f'{agent2_type}')
+ 
+    ax7.set_xlabel("Episodes")
+    ax7.set_ylabel("% BR actions")
+
+    ax7.set_title('Convergence Between Agent Actions and BR')
+    ax7.legend()
+    ax7.grid(True, alpha=0.3)
+
 
     plt.suptitle(f'{game_name}: {agent1_type} vs {agent2_type}', fontsize=16, y=1.02)
     plt.tight_layout()
@@ -463,7 +557,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
 
         # Train the matchup
         print(f"Training {episodes} episodes...")
-        results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True, game_name=game_name)
+        results = train_agents(agent1, agent2, agent1_type, agent2_type, env, episodes=episodes, verbose=True, game_name=game_name)
 
         # Store results
         matchup_key = f"{agent1_type}_vs_{agent2_type}"
@@ -475,7 +569,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
 
         # Analyze this matchup
         games_dict = get_all_games()
-        analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix)
+        analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params)
 
     return all_results
 
@@ -568,3 +662,23 @@ def compare_all_results(all_results, game_name):
         plt.show()
 
     return comparison_data
+
+    
+def best_responders(agent1, agent2, agent1_type, agent2_type, action_size, payoff_matrix, pt_params, env, ref_setting, ref_lambda):
+    opp_params = dict()
+    opp_params['opponent_type'] = agent2_type
+    opp_params['opponent_action_size'] = action_size
+    opp_params['opp_ref'] = None
+    if agent2_type != "AI":
+        opp_params['opp_ref'] = agent2.ref_point
+    best_responder1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params,ref_setting=ref_setting, lambda_ref=ref_lambda)
+
+    opp_params = dict()
+    opp_params['opponent_type'] = agent1_type
+    opp_params['opponent_action_size'] = action_size
+    opp_params['opp_ref'] = None
+    if agent1_type != "AI":
+        opp_params['opp_ref'] = agent1.ref_point
+    best_responder2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1, opp_params=opp_params, ref_setting=ref_setting,                      lambda_ref=ref_lambda)
+
+    return best_responder1, best_responder2

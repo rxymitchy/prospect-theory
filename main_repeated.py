@@ -121,8 +121,13 @@ def interactive_experiment():
             agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0, ref_setting=ref_setting)
             agent2 = AIAgent(env.state_size, 2, 1)
 
+            agent1_type = "Learning_PT"
+            agent2_type = "Aware_PT" 
+            
+            br_dict = {'agent1_type': agent1_type, 'agent2_type': agent2_type, 'pt_params': pt_params, 'ref_setting': ref_setting, 'ref_lambda': ref_lambda}
+
             print("\nTraining Aware PT vs AI for 100 episodes...")
-            results = train_agents(agent1, agent2, env, episodes=100, verbose=False)
+            results = train_agents(agent1, agent2, env, br_dict, episodes=100, verbose=False)
 
             # Quick analysis
             final_avg1 = np.mean(results['avg_rewards1'][-20:]) if results['avg_rewards1'] else 0
@@ -205,8 +210,13 @@ def interactive_experiment():
                 # Test one key matchup
                 agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0, ref_setting=ref_setting)
                 agent2 = AIAgent(env.state_size, 2, 2, 1)
+ 
+                agent1_type = "Learning_PT"
+                agent2_type = "AI"
+ 
+                br_dict = {'agent1_type': agent1_type, 'agent2_type': agent2_type, 'pt_params': pt_params, 'ref_setting': ref_setting, 'ref_lambda': ref_lambda}
 
-                results = train_agents(agent1, agent2, env, episodes=100, verbose=False)
+                results = train_agents(agent1, agent2, env, br_dict, episodes=100, verbose=False)
 
                 if results['avg_rewards1'] and len(results['avg_rewards1']) >= 20:
                     final_avg1 = np.mean(results['avg_rewards1'][-20:])
@@ -328,7 +338,9 @@ def interactive_experiment():
 
 
             # Train
-            results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True)
+            br_dict = {'agent1_type': agent1_type, 'agent2_type': agent2_type, 'pt_params': pt_params, 'ref_setting': ref_setting, 'ref_lambda': ref_lambda}
+
+            results = train_agents(agent1, agent2, env, br_dict, episodes=episodes, verbose=True)
 
             # Analyze
             games_dict = get_all_games()
@@ -354,7 +366,7 @@ def interactive_experiment():
             if hasattr(agent2, "beliefs"):
                 print(f"Agent 2 beliefs: {agent2.beliefs}")
 
-            analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix)
+            analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params)
 
         elif choice == '5':
             # Algorithm 1 vs Fictitious Play comparison
@@ -437,6 +449,7 @@ def interactive_experiment():
             print(f"\nRunning {agent1_type} vs {agent2_type} in {game_name}...")
 
             env = DoubleAuction(k=price_range, valuation=valuation, cost=cost, horizon=100, state_history=2)
+            payoff_matrix = env.build_payoff_matrix()
 
             # Reference point setting
             # Options = Fixed, EMA, Q, EMAOR
@@ -477,10 +490,9 @@ def interactive_experiment():
 
 
             # Train
-            results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True, game_name=game_name)
+            br_dict = {'agent1_type': agent1_type, 'agent2_type': agent2_type, 'pt_params': pt_params, 'ref_setting': ref_setting, 'ref_lambda': ref_lambda}
+            results = train_agents(agent1, agent2, env, br_dict, episodes=episodes, verbose=True, game_name=game_name)
  
-            payoff_matrix = env.build_payoff_matrix() 
-
             # Analyze
             print('Agent 1 Softmax triggers: ', agent1.softmax_counter)
             print('Agent 2 Softmax triggers: ', agent2.softmax_counter)
@@ -503,7 +515,7 @@ def interactive_experiment():
             if hasattr(agent2, "beliefs") and price_range < 5:
                 print(f"Agent 2 beliefs: {agent2.beliefs}")
 
-            analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix)
+            analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params)
 
 
         elif choice == '7':
