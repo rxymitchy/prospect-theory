@@ -45,8 +45,8 @@ def get_all_games():
         },
         'OchsGame': {
             'payoffs': np.array([
-                [[0, 0], [5, 8]],    # Top/Left, Top/Right
-                [[8, 5], [0, 0]]     # Bottom/Left, Bottom/Right
+                [[4, 0], [0, 1]],    # Top/Left, Top/Right
+                [[0, 1], [1, 0]]     # Bottom/Left, Bottom/Right
             ]),
             'description': 'Ochs Game - PT equilibrium pathology',
             'actions': ['Top', 'Bottom']
