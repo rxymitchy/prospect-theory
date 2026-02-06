@@ -288,6 +288,18 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     joint_actions = results['joint_actions']
     im = ax3.imshow(joint_actions, aspect='auto', origin='lower')
     fig.colorbar(im, ax=ax3, label='Count')
+    MAX_ACTIONS = 3
+
+    if joint_actions.shape[0] <= MAX_ACTIONS and joint_actions.shape[1] <= MAX_ACTIONS:
+        for i in range(joint_actions.shape[0]):
+            for j in range(joint_actions.shape[1]):
+                ax3.text(
+                    j, i,
+                    int(joint_actions[i, j]),
+                    ha="center",
+                    va="center",
+                    color="white" if joint_actions[i, j] > joint_actions.max() / 2 else "black"
+                )
 
     ax3.set_xticks(np.arange(joint_actions.shape[1]))
     ax3.set_xticklabels(np.arange(1, joint_actions.shape[1] + 1))
@@ -330,8 +342,8 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
         error2 = []
 
     ax4.set_xlabel('Step')
-    ax4.set_ylabel('Mean Absolute Error (Q - R)')
-    ax4.set_title('Mean Absolute Error')
+    ax4.set_ylabel('Mean Absolute Error')
+    ax4.set_title('Mean Absolute Error (|Q-R|)')
     ax4.legend()
     
     # 5. Cumulative rewards
@@ -411,6 +423,9 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
             a1_pi[action] = sum(agent1_actions[episode] == action) / T0
             a2_pi[action] = sum(agent2_actions[episode] == action) / T0
 
+        print(f'episode {episode} BR1 policy: {br1_pi}')
+        print(f'episode {episode} BR2 policy: {br2_pi}')
+
         total_variation1 = 0
         total_variation2 = 0
 
@@ -433,6 +448,15 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax7.set_title('Convergence Between Agent Actions and BR')
     ax7.legend()
     ax7.grid(True, alpha=0.3)
+
+    ax8 = plt.subplot(3, 3, 8)
+    if game_name == 'PrisonersDilemma': # PT NE == PT EB
+        optimal_policies = [(0, 1), (0, 1)]
+    elif game_name == 'MatchingPennies': # PT NE == PT EB
+        optimal_policies = [(0.5, 0.5), (0.5, 0.5)]
+
+    elif game_name == 'OchsGame':
+        pass
 
 
     plt.suptitle(f'{game_name}: {agent1_type} vs {agent2_type}', fontsize=16, y=1.02)
