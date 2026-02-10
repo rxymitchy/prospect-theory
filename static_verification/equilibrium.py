@@ -23,14 +23,16 @@ def find_classical_ne(payoff_matrix):
 
     # Find mixed strategy NE (if exists)
     # For 2x2 games: p such that player 2 is indifferent
+    # P = B/A, which is how we solve the indifference equation
     A = payoff_matrix[0, 0, 1] - payoff_matrix[0, 1, 1] - payoff_matrix[1, 0, 1] + payoff_matrix[1, 1, 1]
-    B = payoff_matrix[0, 1, 1] - payoff_matrix[1, 1, 1]
+    B = payoff_matrix[1, 1, 1] - payoff_matrix[1, 0, 1]
 
     if abs(A) > 1e-10:
         p_mixed = B / A
         # q such that player 1 is indifferent
+        # Rewrote this to match the correct theory (D should be 1,1 - 0, 1)
         C = payoff_matrix[0, 0, 0] - payoff_matrix[1, 0, 0] - payoff_matrix[0, 1, 0] + payoff_matrix[1, 1, 0]
-        D = payoff_matrix[1, 0, 0] - payoff_matrix[1, 1, 0]
+        D = payoff_matrix[1, 1, 0] - payoff_matrix[0, 1, 0]
 
         if abs(C) > 1e-10:
             q_mixed = D / C
@@ -41,6 +43,10 @@ def find_classical_ne(payoff_matrix):
                 if not (abs(p_mixed) < 1e-10 or abs(p_mixed-1) < 1e-10 or
                         abs(q_mixed) < 1e-10 or abs(q_mixed-1) < 1e-10):
                     mixed_NE = (p_mixed, q_mixed)
+
+    if not pure_NE and mixed_NE is None:
+        raise RuntimeError("Equilibrium exists theoretically, but solver missed it.")
+
 
     return pure_NE, mixed_NE
 
