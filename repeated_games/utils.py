@@ -60,3 +60,22 @@ def get_all_games():
             'actions': ['Top', 'Bottom']
         }
     }
+
+def best_responders(agent1, agent2, agent1_type, agent2_type, action_size, payoff_matrix, pt_params, env, ref_setting, ref_lambda):
+    opp_params = dict()
+    opp_params['opponent_type'] = agent2_type
+    opp_params['opponent_action_size'] = action_size
+    opp_params['opp_ref'] = None
+    if agent2_type != "AI":
+        opp_params['opp_ref'] = agent2.ref_point
+    best_responder1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params,ref_setting=ref_setting, lambda_ref=ref_lambda)
+
+    opp_params = dict()
+    opp_params['opponent_type'] = agent1_type
+    opp_params['opponent_action_size'] = action_size
+    opp_params['opp_ref'] = None
+    if agent1_type != "AI":
+        opp_params['opp_ref'] = agent1.ref_point
+    best_responder2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1, opp_params=opp_params, ref_setting=ref_setting,                      lambda_ref=ref_lambda)
+
+    return best_responder1, best_responder2

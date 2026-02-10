@@ -28,6 +28,7 @@ class AwareHumanPTAgent:
         self.state_size = state_size
 
         self.opponent_type = opp_params['opponent_type']
+        self.opp_pt = opp_params['opp_pt']
 
         if self.opponent_type == "AI":
             self.opp_cpt = False

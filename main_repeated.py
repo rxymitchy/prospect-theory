@@ -179,7 +179,7 @@ def interactive_experiment():
                 episodes = int(episodes) if episodes.isdigit() else 200
 
                 print(f"\nStarting complete experiment for {game_name}...")
-                all_results = run_complete_experiment(game_name, payoff_matrix, episodes=episodes, ref_setting=ref_setting, pt_params=pt_params)
+                all_results = run_complete_experiment(game_name, payoff_matrix, episodes=episodes, ref_setting=ref_setting, pt_params=pt_params, ref_point=r)
 
                 # Compare results
                 compare_all_results(all_results, game_name)
@@ -322,9 +322,11 @@ def interactive_experiment():
                 opp_params['opp_ref'] = None
                 if agent2_type != "AI":
                     if agent2_type == "Aware_PT":
-                        opp_params['opp_ref'] = 0 # Setting static for now, will have to coordinate with external variable 
+                        opp_params['opp_ref'] = r 
+                        opp_params['opp_pt'] = pt_params
                     else:
                         opp_params['opp_ref'] = agent2.ref_point
+                     
                 agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
 
             if agent2_type == 'Aware_PT':
@@ -333,7 +335,11 @@ def interactive_experiment():
                 opp_params['opponent_action_size'] = action_size
                 opp_params['opp_ref'] = None
                 if agent1_type != "AI":
-                    opp_params['opp_ref'] = agent1.ref_point
+                    if agent1_type == "Aware_PT":
+                        opp_params['opp_ref'] = r  
+                        opp_params['opp_pt'] = pt_params
+                    else:
+                        opp_params['opp_ref'] = agent1.ref_point
                 agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1,opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
 
 
