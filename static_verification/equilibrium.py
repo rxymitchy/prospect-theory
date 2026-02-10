@@ -24,6 +24,12 @@ def find_classical_ne(payoff_matrix):
     # Find mixed strategy NE (if exists)
     # For 2x2 games: p such that player 2 is indifferent
     # P = B/A, which is how we solve the indifference equation
+    '''
+    Derivation (only player 2 for brevity):
+    player 2 indifference = p(U_0,0) + (1-p)(U_1,0) = p(U_0,1) + (1-p)(U_1,1) # Rows change on each side, columns are constant on each side
+    Simplied to: p(U_0,0) + U_1,0 - p(U_1,0) = p(U_0,1) + U_1,1 - p(U_1,1)
+    Get P on left side: p(U_0,0 - U_1,0 - U_0,1 + U_1,1) # This is A = U_1,1 - U_1,0 # This is B
+    '''
     A = payoff_matrix[0, 0, 1] - payoff_matrix[0, 1, 1] - payoff_matrix[1, 0, 1] + payoff_matrix[1, 1, 1]
     B = payoff_matrix[1, 1, 1] - payoff_matrix[1, 0, 1]
 
