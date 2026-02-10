@@ -79,3 +79,7 @@ def best_responders(agent1, agent2, agent1_type, agent2_type, action_size, payof
     best_responder2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1, opp_params=opp_params, ref_setting=ref_setting,                      lambda_ref=ref_lambda)
 
     return best_responder1, best_responder2
+
+def smooth(y, window):
+    kernel = np.ones(window, dtype=float) / window
+    return np.convolve(y, kernel, mode='valid')

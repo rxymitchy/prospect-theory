@@ -2,15 +2,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import time
-
+from collections import Counter
 from matplotlib.ticker import FuncFormatter
+from .utils import smooth
 
 def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params):
     """Comprehensive analysis of a matchup"""
-    if game_name != 'Double Auction Game':
-        actions = games_dict[game_name]['actions']
-    else:
-        actions = None
 
     fig = plt.figure(figsize=(15, 10))
 
@@ -31,23 +28,15 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     # 2. Final strategy patterns
     ax2 = plt.subplot(3, 3, 2)
 
-    if game_name != 'Double Auction Game':
-        k = 100
-    else:
-        k = 1
-
     if len(results['ref_points1']) > 0:
         ref_points1 = results['ref_points1']
-        ax2.plot(ref_points1[::k], label=f'{agent1_type}')
+        ax2.plot(ref_points1, label=f'{agent1_type}')
 
     if len(results['ref_points2']) > 0:
         ref_points2 = results['ref_points2']
-        ax2.plot(ref_points2[::k], label=f'{agent2_type}')
+        ax2.plot(ref_points2, label=f'{agent2_type}')
 
     ax2.set_xlabel(f'Step (Every 100)')
-    ax2.xaxis.set_major_formatter(
-        FuncFormatter(lambda x, pos: f"{int(x*k)}")
-    )
     ax2.set_ylabel('Reference Point')
     ax2.set_title('Ref. Points Over Time')
     ax2.legend()
@@ -161,6 +150,69 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax6.grid(True, alpha=0.3)
 
     ax7 = plt.subplot(3, 3, 7)
+    ax8 = plt.subplot(3, 3, 8)
+    actions_1, actions_2 = results['actions1'], results['actions2']
+
+    assert len(actions_1) == len(actions_2)
+
+    action_list = [] # Maybe an inefficient way to track actions, but I'm here, so...
+
+    plot_1, plot_2 = {}, {}
+    for idx in range(len(actions_1)):
+        # Count the frequency of each action
+        ep_actions_1, ep_actions_2 = Counter(actions_1[idx]), Counter(actions_2[idx])
+
+        # Update plot lists so that the lengths = idx, defaulted to 0
+        for key, v in plot_1.items():
+            v.append(0)
+        for key, v in plot_2.items():
+            v.append(0)
+
+        # Go through each action frequency and append it to the plotting data
+        for action, count in ep_actions_1.items():
+            if action not in action_list:
+                action_list.append(action)
+
+            prob = count / len(actions_1[idx])
+        
+            # Update action tracker
+            if str(action) not in plot_1.keys():
+                plot_1[str(action)] = [0] * (idx + 1)
+            plot_1[str(action)][idx] = prob
+
+        for action, count in ep_actions_2.items():
+            prob = count / len(actions_2[idx])
+            if str(action) not in plot_2.keys():
+                plot_2[str(action)] = [0] * (idx + 1)
+            plot_2[str(action)][idx] = prob
+
+    # smoothing logic
+    window = len(actions_1) // 20
+    x_labels = range(window-1, len(actions_1))
+
+    for label, values in plot_1.items():
+        smooth_values = smooth(values, window)
+        ax7.plot(x_labels, smooth_values, label=f'Player 1 Action: {label}')
+
+    for label, values in plot_2.items():
+        smooth_values = smooth(values, window)
+        ax8.plot(x_labels, smooth_values, label=f'Player 2 Action: {label}')
+        
+    ax7.set_title("Player Policies (Action Probs) Over Time")
+    ax7.set_xlabel("Episodes")
+    ax7.set_ylabel("Action Probabilities")
+    
+    ax7.legend()
+    ax7.grid(True, alpha=0.3)
+
+    ax8.set_title("Player 2 Policies (Action Probs) Over Time")
+    ax8.set_xlabel("Episodes")
+    ax8.set_ylabel("Action Probabilities")
+
+    ax8.legend()
+    ax8.grid(True, alpha=0.3)
+
+
 
     if game_name == 'PrisonersDilemma': # PT NE == PT EB
         optimal_policies = [(0, 1), (0, 1)]
@@ -175,54 +227,4 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     plt.tight_layout()
     plt.show()
 
-    # Print summary statistics
-    print("\n" + "="*70)
-    print(f"SUMMARY: {game_name} - {agent1_type} vs {agent2_type}")
-    print("="*70)
-
-    if results['avg_rewards1']:
-        # Final performance
-        final_episodes = 50
-        if len(results['avg_rewards1']) >= final_episodes:
-            final_avg1 = np.mean(results['avg_rewards1'][-final_episodes:])
-            final_avg2 = np.mean(results['avg_rewards2'][-final_episodes:])
-            std1 = np.std(results['avg_rewards1'][-final_episodes:])
-            std2 = np.std(results['avg_rewards2'][-final_episodes:])
-
-            print(f"\nFinal {final_episodes} episodes:")
-            print(f"  {agent1_type}: {final_avg1:.3f} ± {std1:.3f}")
-            print(f"  {agent2_type}: {final_avg2:.3f} ± {std2:.3f}")
-
-            # Convergence check
-            if std1 < 0.15 and std2 < 0.15:
-                print("  ✓ Strategies converged (low variance)")
-            else:
-                print("  ⚠ Strategies still varying")
-
-        # Action frequencies
-        if results['actions1'] and game_name != 'Double Auction Game':
-            last_10_actions1 = [a for ep in results['actions1'][-10:] for a in ep]
-            last_10_actions2 = [a for ep in results['actions2'][-10:] for a in ep]
-
-            freq1_0 = np.mean([a == 0 for a in last_10_actions1])
-            freq2_0 = np.mean([a == 0 for a in last_10_actions2])
-
-            print(f"\nFinal action frequencies (Action 0 = {actions[0]}):")
-            print(f"  {agent1_type}: {freq1_0:.1%}")
-            print(f"  {agent2_type}: {freq2_0:.1%}")
-
-            # PT stats for learning PT agent
-            if hasattr(agent1, 'get_pt_stats'):
-                stats = agent1.get_pt_stats()
-                print(f"\nPT Transformation Stats for {agent1_type}:")
-                print(f"  Mean raw reward: {stats['mean_raw']:.3f}")
-                print(f"  Mean PT reward: {stats['mean_pt']:.3f}")
-                print(f"  PT amplification: {stats['mean_pt']/max(0.001, stats['mean_raw']):.2f}x")
-
-            if hasattr(agent2, 'get_pt_stats'):
-                stats = agent2.get_pt_stats()
-                print(f"\nPT Transformation Stats for {agent2_type}:")
-                print(f"  Mean raw reward: {stats['mean_raw']:.3f}")
-                print(f"  Mean PT reward: {stats['mean_pt']:.3f}")
-                print(f"  PT amplification: {stats['mean_pt']/max(0.001, stats['mean_raw']):.2f}x")
 
