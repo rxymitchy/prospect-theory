@@ -1,7 +1,7 @@
-import torch
 from .ProspectTheory import ProspectTheory
 import numpy as np
 import random
+from scipy.special import softmax
 
 class LearningHumanPTAgent:
     """
@@ -17,7 +17,7 @@ class LearningHumanPTAgent:
         self.pt = ProspectTheory(**pt_params)
         print('LH PT PARAMS: ', pt_params)
         self.agent_id = agent_id
-        self.ref_point = 0 # Come back to this for more intensive reference point testing
+        self.ref_point = pt_params['r']
 
         # Initialize beliefs function and q values as dictionaries
         self.beliefs = dict()
@@ -35,10 +35,10 @@ class LearningHumanPTAgent:
         # And initialize q values
         for state in range(self.state_size):
             # Belief function
-            self.beliefs[state] = torch.ones(self.opp_action_size) / self.opp_action_size
+            self.beliefs[state] = np.ones(self.opp_action_size) / self.opp_action_size
             
             # Q-values
-            self.q_values[state] = torch.zeros(self.action_size, self.opp_action_size) 
+            self.q_values[state] = np.zeros((self.action_size, self.opp_action_size)) 
 
         self.state_visit_counter = dict()
         self.softmax_counter = 0
@@ -68,11 +68,11 @@ class LearningHumanPTAgent:
         action_values = self.calculate_action_values(state)
 
         ## Identify Optimal action
-        optimal_action = torch.argmax(action_values) 
+        optimal_action = np.argmax(action_values) 
         
         ## Identify second best action
-        non_optimal_actions = action_values.clone()
-        non_optimal_actions[optimal_action] = -torch.inf
+        non_optimal_actions = action_values.copy()
+        non_optimal_actions[optimal_action] = -np.inf
         second_best_action = non_optimal_actions.max()
 
         gap = action_values[optimal_action] - second_best_action
@@ -84,25 +84,25 @@ class LearningHumanPTAgent:
             ##Softmax
             ## Normalize 
             vals = action_values - action_values.max()
-            action_probs = torch.softmax(vals/self.temperature, dim=0)
+            action_probs = softmax(vals/self.temperature, axis=0)
             # Sample action
-            action = torch.multinomial(action_probs, 1).item()
+            action = np.random.choice(len(action_probs), p=action_probs)
             return action
         
         # Optimal Action (lins 20, 21 in alg 1)
         else:
-            return int(optimal_action.item())
+            return int(optimal_action)
 
     def calculate_action_values(self, state):
         # Pathology detection (lines 14, 18, 19 in alg 1)
-        action_values = torch.zeros(self.action_size)
+        action_values = np.zeros(self.action_size)
         ## Calculate V for each state, joint action tuple
         for action in range(self.action_size):
             probabilities = self.beliefs[state] 
-            assert torch.isclose(probabilities.sum(), torch.tensor(1.0), atol=1e-5), \
+            assert np.isclose(probabilities.sum(), 1.0, atol=1e-5), \
             "Beliefs don't sum to 1"
 
-            outcomes = self.q_values[state][action] - self.ref_point
+            outcomes = self.q_values[state][action]
 
             action_val = self.pt.expected_pt_value(outcomes, probabilities) 
             action_values[action] = action_val
@@ -110,7 +110,7 @@ class LearningHumanPTAgent:
         return action_values
 
     def belief_update(self, state, opp_action):
-        one_hot = torch.zeros(self.opp_action_size)
+        one_hot = np.zeros(self.opp_action_size)
         one_hot[opp_action] = 1
         self.beliefs[state] = self.lam_b * self.beliefs[state] + (1 - self.lam_b) * one_hot
 
@@ -128,10 +128,9 @@ class LearningHumanPTAgent:
         elif self.ref_update_mode == 'EMAOR':
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * opp_payoff
 
-    def q_value_update(self, state, next_state, action, opp_action, reward, done=False):
-        if not torch.is_tensor(reward):
-            reward = torch.tensor(reward, dtype=self.q_values[state].dtype)
+        self.pt.r = self.ref_point
 
+    def q_value_update(self, state, next_state, action, opp_action, reward, done=False):
         if state not in self.state_visit_counter.keys():
             self.state_visit_counter[state] = 0
 
@@ -144,25 +143,32 @@ class LearningHumanPTAgent:
 
         # Get maximuj value (not index)
         ## - inf because rewards can be negative
-        optimal_next_q_value = torch.tensor(float("-inf"), dtype=beliefs.dtype)
+        optimal_next_q_value = -np.inf
 
-        eps = torch.tensor(1e-8, dtype=beliefs.dtype) # For tie breaks
+        eps = 1e-8 # For tie breaks
+  
+        # Integrate out opp actions (Q(s, a_i, a_-i) -> Q(s, a_i)) in line with PT EB philosophy
+        # Then get the max for the bellman update (max Q(s, a))
         for a_prime in range(self.action_size):
             q_val = q_values[a_prime]
-            # linear expectation of beliefs and values
-            weighted_q_val = torch.dot(beliefs, q_val)
-            # We are maximizing
+
+            # linear expectation of beliefs and values (integrate out opp acts)
+            weighted_q_val = np.dot(beliefs, q_val)
+
+            # We are maximizing for bellman update
             if weighted_q_val > optimal_next_q_value + eps:
                 optimal_next_q_value = weighted_q_val
-            elif torch.abs(weighted_q_val - optimal_next_q_value) <= eps:
+
+            # Tie breaker (randomly choose)
+            elif np.abs(weighted_q_val - optimal_next_q_value) <= eps:
                 if random.random() < 0.5:
                     optimal_next_q_value = weighted_q_val
 
-        # Get stored value (state, joint action value) 
+        # Get stored value (state, joint action value) for bootstrap 
         q_value = self.q_values[state][action][opp_action]
 
         if done:
-            optimal_next_q_value = torch.tensor(0.0, dtype=q_value.dtype)
+            optimal_next_q_value = 0.0
 
         # Calculate delta in untransformed reward space
         delta = reward + self.gamma * optimal_next_q_value - q_value 
@@ -170,7 +176,7 @@ class LearningHumanPTAgent:
         self.q_values[state][action][opp_action] += self.alpha * delta
 
     def get_q_values(self):
-        q_values = torch.zeros(self.action_size, self.opp_action_size)
+        q_values = np.zeros((self.action_size, self.opp_action_size))
 
         total_visits = sum(self.state_visit_counter.values())
 
@@ -185,9 +191,9 @@ class LearningHumanPTAgent:
 
             weight = num_visits / total_visits
 
-            q_values += weight * torch.as_tensor(q_vals, dtype=torch.float32)
+            q_values += weight * q_vals
 
-        return q_values.numpy()
+        return q_values
 
 
 

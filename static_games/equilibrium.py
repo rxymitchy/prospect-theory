@@ -55,19 +55,61 @@ def find_classical_ne(payoff_matrix):
 
     return pure_NE, mixed_NE
 
-def compute_cpt_equilibrium(payoff_matrix):
+def compute_cpt_equilibrium(U, pt, p1_type, p2_type):
     """Compute the cpt equilibrium using the semi smooth newton method.
        First, check for pure equilibria, then check for mixed strategies with newton""" 
     # Define equilibria variables
-    pure_equil, mixed_equil = None, None
+    pure_equil, mixed_equil = [], None
+
+    # Define Util Funtion:
+    def util_func(values, probs, player_type):
+        if player_type == "EU":
+            return probs @ values
+
+        elif player_type == "PT":
+            return pt.expected_pt_value(values, probs)
 
     # First, check for pure:
+    for i in range(U.shape[0]):
+        for j in range(U.shape[1]):
+            p_1_a_1, p_1_a_2 = U[i, j, 0], U[1-i, j, 0]
+            if p1_type == "PT":
+                p_1_a_1, p_1_a_2 = pt.value_function(p_1_a_1), pt.value_function(p_1_a_2)    
+
+            p_2_a_1, p_2_a_2 = U[i, j, 1], U[i, 1-j, 1]
+            if p2_type == "PT":
+                p_2_a_1, p_2_a_2 = pt.value_function(p_2_a_1), pt.value_function(p_2_a_2)
     
+            if p_1_a_1 >= p_1_a_2 and p_2_a_1 >= p_2_a_2:
+                pure_equil.append((i, j))
+
+    # Now, mixed strategies with newtown semismooth:
+    p, q = 0.5, 0.5
+    z = np.array([p, q])
+
+    # Stopping condition
+    max_tries = 1000
+    counter = 0
+
+    while counter < max_tries:
+        counter += 1
+
+        try:
+            z, is_root = semismooth_newton(U, z, util_func, p1_type, p2_type)
+
+        except ValueError as e:
+            print(f'{e}')
+            break
+
+        if is_root:
+            mixed_equil = z
+            break
+
+    return pure_equil, mixed_equil
 
 
 
-
-def semismooth_newton(U, z, util_func, eps=1e-6):
+def semismooth_newton(U, z, util_func, p1_type, p2_type, eps=1e-6):
     # A semismooth newton solver for pt equilibrium
     # Step 1) Define starting conditions for each strategy (e.g. (0.5, 0.5))
     p, q = z
@@ -83,15 +125,15 @@ def semismooth_newton(U, z, util_func, eps=1e-6):
     # Define the prob vectors for both: p1 is the probs player 2 players action 0 or 1, and vice versa
     p_1_probs, p_2_probs = np.array([q, 1-q]), np.array([p, 1-p])
      
-    player_1_F = util_func(row_a_1, p_1_probs) - util_func(row_a_2, p_1_probs)
-    player_2_F = util_func(col_a_1, p_2_probs) - util_func(col_a_2, p_2_probs) 
+    player_1_F = util_func(row_a_1, p_1_probs, p1_type) - util_func(row_a_2, p_1_probs, p1_type)
+    player_2_F = util_func(col_a_1, p_2_probs, p2_type) - util_func(col_a_2, p_2_probs, p2_type) 
     F_z = np.array([player_1_F, player_2_F])
 
     if abs(F_z[0]) < eps and abs(F_z[1]) < eps:
         return z, True
 
     # Step 3) Compute the Jacobian J for the mapping p,q -> F
-    jacobian = compute_jacobian(p, q, util_func, U) 
+    jacobian = compute_jacobian(p, q, util_func, U, p1_type, p2_type) 
 
     # Step 4) Solve for delta s.t. Jdelta = -F(z)
     delta = np.linalg.solve(jacobian, -F_z)
@@ -102,7 +144,7 @@ def semismooth_newton(U, z, util_func, eps=1e-6):
 
     return z, False 
 
-def compute_jacobian(p, q, util_func, U, eps=1e-6):
+def compute_jacobian(p, q, util_func, U, p1_type, p2_type, eps=1e-6):
     ''' A numerical computation of the jacobian matrix for the semismooth newton method
     '''
     # Check if we are near boundary
@@ -119,14 +161,15 @@ def compute_jacobian(p, q, util_func, U, eps=1e-6):
     # Compute F1 (only with q, F1 does not depend on p)
     p_1_probs_plus, p_1_probs_minus = np.array([q + eps, 1 - (q + eps)]), np.array([q - eps, 1 - (q - eps)])
 
-    F1_plus = util_func(row_a_1, p_1_probs_plus) - util_func(row_a_2, p_1_probs_plus)
-    F1_minus = util_func(row_a_1, p_1_probs_minus) - util_func(row_a_2, p_1_probs_minus)
+    F1_plus = util_func(row_a_1, p_1_probs_plus, p1_type) - util_func(row_a_2, p_1_probs_plus, p1_type)
+    F1_minus = util_func(row_a_1, p_1_probs_minus, p1_type) - util_func(row_a_2, p_1_probs_minus, p1_type)
     F1_delta = (F1_plus - F1_minus) / (2 * eps)
 
     # Compute F2 (only with p, F2 does not depend on F1)
     p_2_probs_plus, p_2_probs_minus = np.array([p + eps, 1 - (p + eps)]), np.array([p - eps, 1 - (p - eps)])
-    F2_plus = util_func(col_a_1, p_2_probs_plus) - util_func(col_a_2, p_2_probs_plus)
-    F2_minus = util_func(col_a_1, p_2_probs_minus) - util_func(col_a_2, p_2_probs_minus)
+
+    F2_plus = util_func(col_a_1, p_2_probs_plus, p2_type) - util_func(col_a_2, p_2_probs_plus, p2_type)
+    F2_minus = util_func(col_a_1, p_2_probs_minus, p2_type) - util_func(col_a_2, p_2_probs_minus, p2_type)
     F2_delta = (F2_plus - F2_minus) / (2 * eps)
 
     # Add to Jacobian

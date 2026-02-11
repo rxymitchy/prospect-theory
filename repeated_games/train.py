@@ -156,6 +156,14 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
             else: # Aware Human
                 agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
                 results['ref_points2'].append(agent2.ref_point)
+                # Pass agent 1 pt func to agent2
+                if not isinstance(agent1, AIAgent):
+                    agent2.opp_pt = agent1.pt
+
+            # We needed agent 2 to be fully calculated before passing the agent 2 pt values to agent 1
+            if isinstance(agent1, AwareHumanPTAgent):
+                if not isinstance(agent1, AIAgent):
+                    agent1.opp_pt = agent2.pt
 
 
             global_step += 1
@@ -262,28 +270,24 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
             opp_params['opp_ref'] = None
 
             if agent2_type != "AI": # PT agent
-                if agent2_type == "Aware_PT":
-                    opp_params['opp_ref'] = ref_point 
-                    opp_params['opp_pt'] = pt_params
-                else:
-                    opp_params['opp_ref'] = agent2.ref_point
+                opp_params['opp_ref'] = ref_point 
+                opp_params['opp_pt'] = pt_params
 
             agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params,ref_setting=ref_setting, lambda_ref=ref_lambda)
 
         if agent2_type == 'Aware_PT':
             opp_params = dict()
             opp_params['opponent_type'] = agent1_type
+            print(agent1_type)
             opp_params['opponent_action_size'] = action_size
             opp_params['opp_ref'] = None
 
-            if agent2_type != "AI": # PT agent
-                if agent2_type == "Aware_PT":
-                    opp_params['opp_ref'] = ref_point
-                    opp_params['opp_pt'] = pt_params
-                else:
-                    opp_params['opp_ref'] = agent2.ref_point
+            if agent1_type != "AI": # PT agent
+                print('hello')
+                opp_params['opp_ref'] = ref_point
+                opp_params['opp_pt'] = pt_params
 
-            agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1, opp_params=opp_params, ref_setting=ref_setting,                      lambda_ref=ref_lambda)
+            agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1, opp_params=opp_params, ref_setting=ref_setting, lambda_ref=ref_lambda)
 
 
         # Train the matchup

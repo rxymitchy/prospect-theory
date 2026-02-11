@@ -1,7 +1,4 @@
 import numpy as np
-import torch
-import torch.nn as nn
-import torch.optim as optim
 from collections import deque
 import random
 import matplotlib.pyplot as plt
@@ -31,13 +28,6 @@ def interactive_experiment():
     print("="*80)
     print("PROSPECT THEORY REPEATED GAMES - ENHANCED EXPERIMENTS")
     print("="*80)
-
-    # Check for PyTorch
-    try:
-        import torch
-        print("✓ PyTorch is available")
-    except ImportError:
-        raise ImportError("Pytorch is not available")
 
     # Get games
     games = get_all_games()
@@ -75,7 +65,9 @@ def interactive_experiment():
             if ref_setting not in viable_options:
                 print("Failed, please try again.")
 
-        r = float(input("Input Initial Reference Point Value (one chance): ").strip()) 
+        r = None
+        while r == None:
+            r = float(input("Input Initial Reference Point Value: ").strip()) 
 
         print("\n" + "="*80)
         print("SET PT PARAMETERS")
@@ -321,11 +313,8 @@ def interactive_experiment():
                 opp_params['opponent_action_size'] = action_size
                 opp_params['opp_ref'] = None
                 if agent2_type != "AI":
-                    if agent2_type == "Aware_PT":
-                        opp_params['opp_ref'] = r 
-                        opp_params['opp_pt'] = pt_params
-                    else:
-                        opp_params['opp_ref'] = agent2.ref_point
+                    opp_params['opp_ref'] = r 
+                    opp_params['opp_pt'] = pt_params
                      
                 agent1 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=0, opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
 
@@ -335,11 +324,8 @@ def interactive_experiment():
                 opp_params['opponent_action_size'] = action_size
                 opp_params['opp_ref'] = None
                 if agent1_type != "AI":
-                    if agent1_type == "Aware_PT":
-                        opp_params['opp_ref'] = r  
-                        opp_params['opp_pt'] = pt_params
-                    else:
-                        opp_params['opp_ref'] = agent1.ref_point
+                    opp_params['opp_ref'] = r  
+                    opp_params['opp_pt'] = pt_params
                 agent2 = AwareHumanPTAgent(payoff_matrix, pt_params, action_size, env.state_size, agent_id=1,opp_params=opp_params, ref_setting=ref_setting, lambda_ref = ref_lambda)
 
 

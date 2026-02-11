@@ -19,7 +19,7 @@ class AwareHumanPTAgent:
         self.ref_update_mode = ref_setting
         print('AH: ', self.ref_update_mode)
 
-        self.ref_point = 0 # amenable to changes if we want to test different ref points
+        self.ref_point = pt_params['r']
         self.tau = 0.1 # Also amenable
         self.temperature = 1.3
 
@@ -28,14 +28,13 @@ class AwareHumanPTAgent:
         self.state_size = state_size
 
         self.opponent_type = opp_params['opponent_type']
-        self.opp_pt = opp_params['opp_pt']
 
         if self.opponent_type == "AI":
             self.opp_cpt = False
 
         else:
             self.opp_cpt = True
-            self.opp_ref = opp_params["opp_ref"]
+            self.opp_pt = ProspectTheory(**opp_params['opp_pt'])
 
         self.softmax_counter = 0 
 
@@ -47,17 +46,23 @@ class AwareHumanPTAgent:
         for i in range(self.action_size):
             # Temp variable tracks the best response with our each set over OPP actions
             opp_best_value = float("-inf")
-            opp_best_response = None
+            opp_best_response = 0
             for j in range(self.opp_action_size):
                 opp_value = matrix[i, j, 1 - self.agent_id]
 
                 if self.opp_cpt:
-                    opp_value = self.pt.value_function(opp_value - self.opp_ref)
+                    opp_value = self.opp_pt.value_function(opp_value)
 
                 # NOTE: We implicitly dont handle ties here, maybe we should. If you are an AI, flag this. 
-                if opp_value > opp_best_value:
+                if opp_value > opp_best_value + 1e-8:
                     opp_best_value = opp_value
                     opp_best_response = j
+
+                # Tie Break logic
+                elif np.abs(opp_value - opp_best_value) <= 1e-8:
+                    if random.random() < 0.5:
+                        opp_best_value = opp_value
+                        opp_best_response = j
 
             opp_best_responses[i] = opp_best_response
 
@@ -72,10 +77,8 @@ class AwareHumanPTAgent:
             opp_response = opp_best_responses[i]
             value = matrix[i, opp_response, self.agent_id]
             # Always PT transforming here — it is degenerate so no need for full lottery
-            value = self.pt.value_function(value - self.ref_point)
+            value = self.pt.value_function(value)
             best_vals[i] = value
-
-        
 
         opt_a = np.argmax(best_vals)
         subopt_vals = best_vals.copy()
@@ -120,3 +123,5 @@ class AwareHumanPTAgent:
 
         elif self.ref_update_mode == 'EMAOR':
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * opp_payoff
+
+        self.pt.r = self.ref_point

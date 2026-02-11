@@ -12,7 +12,8 @@ class ProspectTheory:
 
     def value_function(self, x):
         """PT value function v(x)"""
-        if x >= self.r:
+        x = x - self.r
+        if x >= 0:
             return (x + 1e-10) ** self.alpha
         else:
             return -self.lambd * ((-x + 1e-10) ** self.alpha)
