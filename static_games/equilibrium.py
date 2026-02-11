@@ -1,7 +1,7 @@
 from .ProspectTheory import ProspectTheory
 import numpy as np
 
-def find_classical_ne(payoff_matrix):
+def compute_nash_equil(payoff_matrix):
     """Find classical Nash equilibria analytically for 2x2 games"""
     pure_NE = []
     mixed_NE = None

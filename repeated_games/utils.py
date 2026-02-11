@@ -53,13 +53,13 @@ def get_all_games():
         },
         'CrawfordGame': {
             'payoffs': np.array([
-                [[0, 0], [5, 1]],    # Top/Left, Top/Right
-                [[1, 5], [4, 4]]     # Bottom/Left, Bottom/Right
+                [[1, -1], [0, 0]],    # Top/Left, Top/Right
+                [[0, 0], [-1, 1]]     # Bottom/Left, Bottom/Right
             ]),
             'description': 'Crawford Game - convex preference effects',
             'actions': ['Top', 'Bottom']
         }
-    }
+}
 
 def best_responders(agent1, agent2, agent1_type, agent2_type, action_size, payoff_matrix, pt_params, env, ref_setting, ref_lambda):
     opp_params = dict()

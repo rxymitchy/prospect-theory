@@ -1,171 +1,102 @@
-# ============================================================================
-# 7. MAIN EXECUTION
-# ============================================================================
+from static_games.equilibrium import compute_nash_equil, compute_cpt_equilibrium 
+from static_games.ProspectTheory import ProspectTheory
+from static_games.utils import get_all_games
 
 def main():
-    """Main execution function"""
+	"""Main execution function"""
+	print('*' * 80)
+	print("Static Equilibrium Solver")
+	print("Option 1: Compute NE (EU agents only)\n")
+	print("Option 2: Compute CPT Equilibrium\n")
+	choice = 0
+	while choice not in [1, 2]:
+		choice = int(input("Choose 1 or 2, enter digit here: ").strip())
+		
+		if choice not in [1, 2]:
+			print("Bad Input, try again")
 
-    print("=" * 80)
-    print("COMPREHENSIVE VERIFICATION OF LECLERC'S THESIS")
-    print("Prospect Theory Equilibrium in Games")
-    print("=" * 80)
+	if choice == 2:
+		r = None
+		while r == None:
+			r = float(input("Input Initial Reference Point Value: ").strip())
 
-    # ========================================================================
-    # PART 1: IMPLEMENTATION VERIFICATION
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("PART 1: IMPLEMENTATION VERIFICATION")
-    print("=" * 80)
+		print("\n" + "="*80)
+		print("SET PT PARAMETERS")
+		print("="*80)
+		print("\nOptions:")
+		print("1. Kahneman and Tversky Params (gamma = 0.61, delta=0.69)")
+		print("2. Custom")
 
-    checks, pt = verify_pt_implementation()
+		pt_choice = 0
+		while pt_choice not in [1, 2]:
+			pt_choice = int(input("Enter 1 or 2 for your choice: ").strip())
+			if pt_choice not in [1, 2]:
+				print("Invalid input, try again")
 
-    print("\nPT Implementation Checks:")
-    print("-" * 40)
-    for check in checks:
-        status = "✓" if check['passed'] else "✗"
-        print(f"{status} {check['test']:35} {check['result']}")
-        if not check['passed']:
-            print(f"  Required: {check['required']}")
+		if pt_choice == 1:
+		    pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': 0.61, 'r': r, 'delta': 0.69}
 
-    # ========================================================================
-    # PART 2: FINE SEARCH FOR OCHS GAME PT-EB
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("PART 2: FINE SEARCH FOR OCHS GAME PT-EB")
-    print("=" * 80)
+		elif pt_choice == 2:
+			delta, gamma = -1, -1
+			while not 0 <= delta <= 1 or not 0 <= gamma <= 1:
+				delta = float(input("Enter delta value (must be in range [0, 1] continuous): "))
+				gamma = float(input("Enter gamma value (must be in range [0, 1] continuous): "))
 
-    ochs_results = fine_search_ochs_game()
-    print("\nFine Grid Search Results for Ochs Game:")
-    print("-" * 50)
-    for res in ochs_results:
-        status = "✓" if res['close_to_claim'] else "○"
-        print(f"{status} {res['params']:25} p={res['p']:.3f}, q={res['q']:.3f}")
-        print(f"  Best responses: br1={res['br1']:.3f}, br2={res['br2']:.3f}")
-        print(f"  Deviation: {res['deviation']:.6f}")
+			if not 0 <= delta <= 1 or not 0 <= gamma <= 1:
+				print("invalid input, try again")
 
-    # ========================================================================
-    # PART 3: COMPREHENSIVE GAME ANALYSIS
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("PART 3: COMPREHENSIVE GAME ANALYSIS")
-    print("=" * 80)
+			pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': gamma, 'r': r, 'delta':delta}
 
-    analysis_results = run_comprehensive_analysis()
+		pt = ProspectTheory(**pt_params)
 
-    print("\nDetailed Game Analysis:")
-    print("-" * 80)
+	# Select game
+	games = get_all_games()
+	print("\nSelect game:")
+	for i, (name, data) in enumerate(games.items(), 1):
+		print(f"{i}. {name}")
 
-    for result in analysis_results:
-        print(f"\nGAME: {result['game']}")
-        print(f"Description: {result['description']}")
-        print(f"PT Parameters: λ={result['pt_params'].get('lambd', 'N/A')}, "
-              f"α={result['pt_params'].get('alpha', 'N/A')}, "
-              f"γ={result['pt_params'].get('gamma', 'N/A')}, "
-              f"r={result['pt_params'].get('r', 'N/A')}")
+	game_choice = 0
+	while not (1 <= int(game_choice) <= len(games)):
+		game_choice = input("\nGame number: ").strip()
+		game_names = list(games.keys())
 
-        print(f"Classical NE:")
-        if result['classical_pure']:
-            print(f"  Pure: {result['classical_pure']}")
-        if result['classical_mixed']:
-            p, q = result['classical_mixed']
-            print(f"  Mixed: p={p:.3f}, q={q:.3f}")
-
-        print(f"Prospect Theory:")
-        if result['pt_ne']:
-            p, q = result['pt_ne']
-            print(f"  PT-NE: p={p:.3f}, q={q:.3f}")
-            if result['classical_mixed']:
-                p_class, q_class = result['classical_mixed']
-                delta_p = abs(p_class - p)
-                delta_q = abs(q_class - q)
-                print(f"    vs Classical: Δp={delta_p:.3f}, Δq={delta_q:.3f}")
-        else:
-            print(f"  PT-NE: NOT FOUND (pathology)")
-
-        if result['pt_eb']:
-            p, q = result['pt_eb']
-            print(f"  PT-EB: p={p:.3f}, q={q:.3f}")
-        else:
-            print(f"  PT-EB: Not found")
-
-    # ========================================================================
-    # PART 4: THESIS CLAIM VERIFICATION
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("PART 4: THESIS CLAIM VERIFICATION")
-    print("=" * 80)
-
-    claims = verify_thesis_claims(analysis_results)
-
-    print("\nTHESIS CLAIM ASSESSMENT:")
-    print("-" * 60)
-
-    supported_count = 0
-    total_claims = len(claims)
-
-    for claim_name, claim_data in claims.items():
-        status = "✓" if claim_data['supported'] else "✗"
-        if claim_data['supported']:
-            supported_count += 1
-
-        print(f"\n{status} {claim_data['description']}")
-        if claim_data['games']:
-            games_str = ", ".join(claim_data['games'])
-            print(f"  Supported by: {games_str}")
-        else:
-            print(f"  Not supported by tested games")
-
-    # ========================================================================
-    # PART 5: SUMMARY AND CONCLUSION
-    # ========================================================================
-    print("\n" + "=" * 80)
-    print("PART 5: SUMMARY AND CONCLUSION")
-    print("=" * 80)
-
-    support_rate = supported_count / total_claims * 100
-
-    print(f"\nOVERALL ASSESSMENT:")
-    print(f"  Claims supported: {supported_count}/{total_claims} ({support_rate:.1f}%)")
-
-    if support_rate >= 75:
-        conclusion = "Thesis claims are LARGELY SUPPORTED"
-    elif support_rate >= 50:
-        conclusion = "Thesis claims are PARTIALLY SUPPORTED"
-    else:
-        conclusion = "Thesis claims are LARGELY UNSUPPORTED"
-
-    print(f"  CONCLUSION: {conclusion}")
-
-    print(f"\nKEY FINDINGS:")
-    print(f"  1. PT implementation verified: {sum(c['passed'] for c in checks)}/{len(checks)} checks passed")
-    print(f"  2. Ochs game PT-EB search: Found candidates close to thesis claim" if
-          any(r['close_to_claim'] for r in ochs_results) else
-          "  2. Ochs game PT-EB search: No exact match found")
-
-    # Specific findings
-    print(f"\nSPECIFIC RESULTS:")
-    for result in analysis_results:
-        if result['game'] == 'OchsGame_Correct' and result['pt_ne'] is None:
-            print(f"  ✓ Ochs Game shows PT-NE failure (as thesis claims)")
-        if result['game'] == 'CrawfordGame' and result['pt_vs_classical'] == 'Different':
-            print(f"  ✓ Crawford Game shows PT changes predictions")
-        if result['game'] == 'BattleOfSexes' and result['pt_vs_classical'] == 'Different':
-            print(f"  ✓ Battle of Sexes shows PT changes predictions")
-
-    print("\n" + "=" * 80)
-    print("VERIFICATION COMPLETE")
-    print("=" * 80)
+		if game_choice.isdigit() and 1 <= int(game_choice) <= len(games):
+			game_name = game_names[int(game_choice)-1]
+			payoff_matrix = games[game_name]['payoffs']
+		else:
+			print("Bad Input, try again")	
 
 
-# ============================================================================
-# 8. RUN THE ANALYSIS
-# ============================================================================
+	if choice == 1:
+		'''Nash Equilibrium EU Logic'''
+
+
+	elif choice == 2:
+		'''CPT Equilibrium Logic'''
+		# Select agent types 
+		print("\nPreference Types:\n") 
+		print("Option 1: PT\n")
+		print("Option 2: EU\n")
+		valid_types = ['PT', 'EU'] 
+		agent1_type, agent2_type = "", "" 
+	 
+		while agent1_type not in valid_types or agent2_type not in valid_types: 
+			agent1_type = int(input("Player 1 type (Enter Number): ").strip()) 
+			if agent1_type in [1, 2]: 
+				agent1_type = valid_types[agent1_type-1] 
+	 
+			agent2_type = int(input("Player 2 type (Enter number): ").strip()) 
+			if agent2_type in [1, 2]: 
+				agent2_type = valid_types[agent2_type-1] 
+	 
+			if agent1_type not in valid_types or agent2_type not in valid_types: 
+				print("Agents input incorrectly, try again") 
+
+		pure_equil, mixed_equil = compute_cpt_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
+
+		print(f'Game: {game_name}, Pure Equilibrium: {pure_equil}, Mixed Equilibrium: {mixed_equil}')
+    
+
 
 if __name__ == "__main__":
     main()
-
-    # After displaying results
-    print("\n" + "="*80)
-    run_diag = input("Run advanced diagnostics? (y/n): ").strip().lower()
-    if run_diag == 'y':
-        run_advanced_diagnostics()

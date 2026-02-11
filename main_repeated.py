@@ -271,13 +271,18 @@ def interactive_experiment():
                 payoff_matrix = games[game_name]['payoffs']
 
             # Select agent types
-            print("\nAgent types: Aware_PT, Learning_PT, AI")
+            print("\nAgent types: 1) Aware_PT, 2) Learning_PT, 3) AI")
             valid_types = ['Aware_PT', 'Learning_PT', 'AI']
             agent1_type, agent2_type = "", ""
           
             while agent1_type not in valid_types or agent2_type not in valid_types:
-                agent1_type = input("Agent 1 type: ").strip()
-                agent2_type = input("Agent 2 type: ").strip()
+                agent1_type = int(input("Agent 1 type (Enter Number): ").strip())
+                if agent1_type in [1, 2, 3]:
+                    agent1_type = valid_types[agent1_type-1]
+
+                agent2_type = int(input("Agent 2 type (Enter number): ").strip())
+                if agent2_type in [1, 2, 3]:
+                    agent2_type = valid_types[agent2_type-1]
 
                 if agent1_type not in valid_types or agent2_type not in valid_types:
                     print("Agents input incorrectly, try again")
