@@ -15,6 +15,25 @@ def main():
 		if choice not in [1, 2]:
 			print("Bad Input, try again")
 
+	# Select agent types 
+	print("\nPreference Types:\n")
+	print("Option 1: PT\n")
+	print("Option 2: EU\n")
+	valid_types = ['PT', 'EU']
+	agent1_type, agent2_type = "", ""
+
+	while agent1_type not in valid_types or agent2_type not in valid_types:
+		agent1_type = int(input("Player 1 type (Enter Number): ").strip())
+		if agent1_type in [1, 2]:
+			agent1_type = valid_types[agent1_type-1]
+
+		agent2_type = int(input("Player 2 type (Enter number): ").strip())
+		if agent2_type in [1, 2]:
+			agent2_type = valid_types[agent2_type-1]
+
+		if agent1_type not in valid_types or agent2_type not in valid_types:
+			print("Agents input incorrectly, try again")
+
 	if choice == 2:
 		r = None
 		while r == None:
@@ -73,28 +92,16 @@ def main():
 
 	elif choice == 2:
 		'''CPT Equilibrium Logic'''
-		# Select agent types 
-		print("\nPreference Types:\n") 
-		print("Option 1: PT\n")
-		print("Option 2: EU\n")
-		valid_types = ['PT', 'EU'] 
-		agent1_type, agent2_type = "", "" 
-	 
-		while agent1_type not in valid_types or agent2_type not in valid_types: 
-			agent1_type = int(input("Player 1 type (Enter Number): ").strip()) 
-			if agent1_type in [1, 2]: 
-				agent1_type = valid_types[agent1_type-1] 
-	 
-			agent2_type = int(input("Player 2 type (Enter number): ").strip()) 
-			if agent2_type in [1, 2]: 
-				agent2_type = valid_types[agent2_type-1] 
-	 
-			if agent1_type not in valid_types or agent2_type not in valid_types: 
-				print("Agents input incorrectly, try again") 
 
 		pure_equil, mixed_equil = compute_cpt_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
 
 		print(f'Game: {game_name}, Pure Equilibrium: {pure_equil}, Mixed Equilibrium: {mixed_equil}')
+
+		print(f'Mixed Equil. Summary:\n')
+		print(f'Number of Unique Mixed Equilibria: {len(mixed_equil.keys())}\n')
+		print('Number of Init Seeds that Converged to Each Equilibria:')
+		for k, v in mixed_equil.items():
+			print(f'{k} Num Seeds: {len(v)}\n')
     
 
 

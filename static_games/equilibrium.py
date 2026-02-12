@@ -1,5 +1,6 @@
 from .ProspectTheory import ProspectTheory
 import numpy as np
+import itertools
 
 def compute_nash_equil(payoff_matrix):
     """Find classical Nash equilibria analytically for 2x2 games"""
@@ -17,6 +18,7 @@ def compute_nash_equil(payoff_matrix):
             payoff_i_j2 = payoff_matrix[i, j, 1]
             payoff_i_other = payoff_matrix[i, 1-j, 1]
 
+            # Weak best response because its asking can a player gain an edge by deviating, we dont care about absolute best
             if payoff_i_j >= payoff_other_j and payoff_i_j2 >= payoff_i_other:
                 pure_NE.append((i, j))
 
@@ -59,7 +61,7 @@ def compute_cpt_equilibrium(U, pt, p1_type, p2_type):
     """Compute the cpt equilibrium using the semi smooth newton method.
        First, check for pure equilibria, then check for mixed strategies with newton""" 
     # Define equilibria variables
-    pure_equil, mixed_equil = [], None
+    pure_equil, mixed_equil = [], dict()
 
     # Define Util Funtion:
     def util_func(values, probs, player_type):
@@ -84,26 +86,34 @@ def compute_cpt_equilibrium(U, pt, p1_type, p2_type):
                 pure_equil.append((i, j))
 
     # Now, mixed strategies with newtown semismooth:
-    p, q = 0.5, 0.5
-    z = np.array([p, q])
+    # Start with many seeds to explore the space (why not?)
+    starting_points = [0.1, 0.3, 0.5, 0.7, 0.9]
+    init_list = itertools.product(starting_points, starting_points) 
 
-    # Stopping condition
-    max_tries = 1000
-    counter = 0
+    # Iterate through seed pairs, append to mixed equil
+    for p, q in init_list:
+        # Stopping condition
+        max_tries = 1000
+        counter = 0
+        z = np.array([p, q])
+        while counter < max_tries:
+            counter += 1
 
-    while counter < max_tries:
-        counter += 1
+            try:
+                z, is_root = semismooth_newton(U, z, util_func, p1_type, p2_type)
 
-        try:
-            z, is_root = semismooth_newton(U, z, util_func, p1_type, p2_type)
+            except ValueError as e:
+                print(f'{e}')
+                break
 
-        except ValueError as e:
-            print(f'{e}')
-            break
-
-        if is_root:
-            mixed_equil = z
-            break
+            if is_root:
+                z_round = np.round(z, 5)
+                key = f'equil = {tuple(z_round)}'
+                if key not in mixed_equil.keys():
+                    mixed_equil[key] = [f'p={p}, q={q}']
+                else:
+                    mixed_equil[key].append(f'p={p}, q={q}')
+                break
 
     return pure_equil, mixed_equil
 
