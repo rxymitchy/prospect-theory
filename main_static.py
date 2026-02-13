@@ -1,4 +1,6 @@
-from static_games.equilibrium import compute_nash_equil, compute_cpt_equilibrium 
+from static_games.ne_solver import compute_nash_equil
+from static_games.eb_solver import compute_eb_equilibrium 
+from static_games.ptne_solver import compute_ptne_equilibrium
 from static_games.ProspectTheory import ProspectTheory
 from static_games.utils import get_all_games
 
@@ -7,15 +9,16 @@ def main():
 	print('*' * 80)
 	print("Static Equilibrium Solver")
 	print("Option 1: Compute NE (EU agents only)\n")
-	print("Option 2: Compute CPT Equilibrium\n")
+	print("Option 2: Compute CPT-EB Equilibrium\n")
+	print("Option 3: Compute CPT-NE Equilibrium\n")
 	choice = 0
-	while choice not in [1, 2]:
-		choice = int(input("Choose 1 or 2, enter digit here: ").strip())
+	while choice not in [1, 2, 3]:
+		choice = int(input("Choose 1, 2, or 3, enter digit here: ").strip())
 		
-		if choice not in [1, 2]:
+		if choice not in [1, 2, 3]:
 			print("Bad Input, try again")
 
-	if choice == 2:
+	if choice in [2, 3]:
 
 		# Select agent types 
 		print("\nPreference Types:\n")
@@ -94,9 +97,9 @@ def main():
 
 
 	elif choice == 2:
-		'''CPT Equilibrium Logic'''
+		'''CPT-EB Equilibrium Logic'''
 
-		pure_equil, mixed_equil = compute_cpt_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
+		pure_equil, mixed_equil = compute_eb_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
 
 		print(f'Game: {game_name}, Pure Equilibrium: {pure_equil}, Mixed Equilibrium: {mixed_equil}')
 
@@ -105,6 +108,11 @@ def main():
 		print('Number of Init Seeds that Converged to Each Equilibria:')
 		for k, v in mixed_equil.items():
 			print(f'{k} Num Seeds: {len(v)}\n')
+
+	elif choice == 3:
+		''' CPT-NE Logic '''
+		equil = compute_ptne_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
+		print(f'Game: {game_name}, Equilibrium: {equil}')
     
 
 

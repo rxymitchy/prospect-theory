@@ -1,0 +1,95 @@
+import numpy as np
+
+def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
+    """Compute the cpt equilibrium using the semi smooth newton method.
+       First, check for pure equilibria, then check for mixed strategies with newton"""
+    # Define equilibria variables
+    pure_equil, mixed_equil = [], dict()
+
+    # Define Util Funtion:
+    def util_func(values, probs, player_type):
+        if player_type == "EU":
+            return probs @ values
+
+        elif player_type == "PT":
+            return pt.expected_pt_value(values, probs)
+
+    # First, check for pure:
+    for i in range(U.shape[0]):
+        for j in range(U.shape[1]):
+            p_1_a_1, p_1_a_2 = U[i, j, 0], U[1-i, j, 0]
+            if p1_type == "PT":
+                p_1_a_1, p_1_a_2 = pt.value_function(p_1_a_1), pt.value_function(p_1_a_2)
+
+            p_2_a_1, p_2_a_2 = U[i, j, 1], U[i, 1-j, 1]
+            if p2_type == "PT":
+                p_2_a_1, p_2_a_2 = pt.value_function(p_2_a_1), pt.value_function(p_2_a_2)
+
+            if p_1_a_1 >= p_1_a_2 and p_2_a_1 >= p_2_a_2:
+                pure_equil.append((i, j))
+
+    # Define p, q from z
+    p, q = 0.5, 0.5
+
+    # Define eps for tie breaks
+    eps = 1e-8
+
+    # Set the discretized iteration
+    iter_list = list(range(0.01, 1, 0.01))
+
+    # Set the flattened payoffs for player 1:
+    p_1_payoffs = [U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]]
+
+    # For Player 1, iterate over p and keep q fixed
+    max_value_1 = -np.inf
+    max_value_pval_1 = 0.01
+    max_values_1 = []
+
+    for p_i in iter_list:
+        # Forming a full prospect across all 4 outcomes
+        probs = [p_i * q, (1 - p_i) * q), p * (1 - q), (1 - p) * (1 - q)
+        value = util_func(p_1_payoffs, probs, p2_type)
+        if value > max_value_1 + eps:
+            max_value_1 = value
+            max_value_pval_1 = p_i
+ 
+            # Reset the list, there's a new max in town
+            max_pvals_1 = [p_i]
+
+        elif abs(value - max_value_1) <= eps:
+            if random.random() < 0.5:
+                max_value_1 = value
+                max_value_pval_1 = p_i
+
+            # Append the tie
+            max_pvals_1.append(p_i)
+
+    # Same for player 2, but keep p fixed and iterate over q:
+    p_2_payoffs = [U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]]
+
+    max_value_2 = -np.inf
+    max_value_pval_2 = 0.01
+    max_pvals_2 = []
+
+    for q_i in iter_list:
+        probs = [p * q_i, (1 - p) * q_i), p * (1 - q_i), (1 - p) * (1 - q_i)
+        value = util_func(p_2_payoffs, probs, p2_type)
+        if value > max_value_2 + eps:
+            max_value_2 = value
+            max_value_pval_2 = q_i
+            
+            # Reset max pvals list
+            max_pvals_2 = [q_i]
+
+        elif abs(value - max_value_2) <= eps:
+            if random.random() < 0.5:
+                max_value_2 = value
+                max_value_pval_2 = q_i
+
+            # Add the new tie
+            max_pvals_2.append(q_i)
+
+
+
+    
+    return pure_equil, mixed_equil
