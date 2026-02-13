@@ -4,7 +4,12 @@ import random
 
 def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
     """Compute the cpt equilibrium using the semi smooth newton method.
-       First, check for pure equilibria, then check for mixed strategies with newton"""
+       First, check for pure equilibria, then check for mixed strategies with newton
+       NOTE FOR CODE REVIEW: This function is only returning pure equilibria, and 
+       even a pure equilibrium for crawford's game. This was unexpected, so please note that
+       current surprise.
+    """
+
     # Define equilibria variables
     mixed_equil = []
 
@@ -29,7 +34,7 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
     eps = 1e-8
 
     # Set the discretized iteration
-    iter_list = np.linspace(0, 1, 250)
+    iter_list = np.linspace(0, 1, 500)
 
     # Set the flattened payoffs for players:
     p_1_payoffs = [U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]]
