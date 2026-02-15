@@ -112,7 +112,14 @@ def main():
 	elif choice == 3:
 		''' CPT-NE Logic '''
 		equil = compute_ptne_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
-		print(f'Game: {game_name}, Equilibrium: {equil}')
+		print(f'Game: {game_name}, Equilibrium (Key = equilibrium, value = starting points): {equil}')
+
+
+		print(f'Equil. Summary:\n')
+		print(f'Number of Unique Mixed Equilibria: {len(equil.keys())}\n')
+		print('Number of Init Seeds that Converged to Each Equilibria:')
+		for k, v in equil.items():
+			print(f'{k} Num Seeds: {len(v)}\n')
     
 
 
