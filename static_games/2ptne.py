@@ -2,7 +2,7 @@ from .ProspectTheory import ProspectTheory
 import numpy as np
 import itertools
 
-def compute_eb_equilibrium(U, pt, p1_type, p2_type):
+def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
     """Compute the cpt equilibrium using the semi smooth newton method.
        First, check for pure equilibria, then check for mixed strategies with newton""" 
     # Define equilibria variables
@@ -16,37 +16,73 @@ def compute_eb_equilibrium(U, pt, p1_type, p2_type):
         elif player_type == "PT":
             return pt.expected_pt_value(values, probs)
 
-    # First, check for pure. For CPT EB, it becomes degenerate because the opp beliefs are 0, 1. 
+    # First, check for pure. For CPT NE, it becomes degenerate because the opp beliefs are 0, 1. 
     # We calculate the prospect using the certainty given to us by the loops 
+
+    # PT NE is non linear in our strategy space, so we cant make the assumption that 0 >= 1 or vice versa
+    # We need to account for the possibility that a midpoint between them is actually the best response, because our strategy space is nonlinear
+    grid_search = np.linspace(0, 1, 201)
+
+    def V1(q, p1_type):
+        '''Finds the max point in the curve given opponent probs'''
+        max_v = -np.inf
+        # Our values stay static
+        values = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0])
+
+        # But we need to compute new probs for each of our possible p values
+        # then get our max value (we don't care about tracking p, just the max value)
+        for p in grid_search:
+            probs = np.array([p * q, (1 - p) * q, p * (1 - q), (1 - p) * (1 - q)])
+            V = util_func(values, probs, p1_type)
+            if V > max_v:
+                max_v = V 
+        return max_v
+
+    def V2(p, p2_type):
+        '''Finds the max point in the curve given opponent probs'''
+        max_v = -np.inf
+        # Our values stay static
+        values = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1])
+
+        # But we need to compute new probs for each of our possible p values
+        # then get our max value (we don't care about tracking p, just the max value)
+        for q in grid_search:
+            probs = np.array([p * q, (1 - p) * q, p * (1 - q), (1 - p) * (1 - q)])
+            V = util_func(values, probs, p2_type)
+            if V > max_v:
+                max_v = V
+        return max_v
 
     for i in range(U.shape[0]):
         for j in range(U.shape[1]):
             p = 1.0 if i == 0 else 0.0 # Prob P1 plays action 0
             q = 1.0 if j == 0 else 0.0 # Prob P2 plays action 0
 
-            probs1, probs2 = np.array([q, 1-q]), np.array([p, 1-p]) 
+            p1_probs = np.array([p * q, (1 - p) * q, p * (1 - q), (1 - p) * (1 - q)])
+            p2_probs = p1_probs
 
             # We check what the values of staying are across opponent actions, 
             # And then we get the value if we deviate for each action
-            # So, to explain indecing, stay keeps i fixed (where we are in the loop for p1) and hardcodes both p2 actions wrt the probs
-            # THen deviate hardcodes us deviating, and then we operate over the opp actions
 
-            p1_stay, p1_dev = np.array([U[i, 0, 0], U[i, 1, 0]]), np.array([U[1-i, 0, 0], U[1-i, 1, 0]])
+            p1_stay = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]]) 
 
-            p2_stay, p2_dev = np.array([U[0, j, 1], U[1, j, 1]]), np.array([U[0, 1-j, 1], U[1, 1-j, 1]])
+            p2_stay = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]])
 
             # Then we can compute two lotteries with opp probs fixed and stay/dev measured
-            v1_1, v1_2 = util_func(p1_stay, probs1, p1_type), util_func(p1_dev, probs1, p1_type)
-            v2_1, v2_2 = util_func(p2_stay, probs2, p2_type), util_func(p2_dev, probs2, p2_type)
-    
+            v1_1, v1_2 = util_func(p1_stay, p1_probs, p1_type), V1(q, p1_type)
+            v2_1, v2_2 = util_func(p2_stay, p2_probs, p2_type), V2(p, p2_type)
+
+            tol = 1e-8
+
             # So if both players want to stay, we are at equilibrium
-            if v1_1 >= v1_2 and v2_1 >= v2_2:
+            if v1_1 >= v1_2 - tol and v2_1 >= v2_2 - tol:
                 pure_equil.append((i, j))
 
     for idx, (i, j) in enumerate(pure_equil):
         p = 1.0 if i == 0 else 0.0 # Prob P1 plays action 0
         q = 1.0 if j == 0 else 0.0 # Prob P2 plays action 0
-        pure_equil[idx] = (p, q) 
+        pure_equil[idx] = (p, q)
+
 
     # Now, mixed strategies with newtown semismooth:
     # Start with many seeds to explore the space (why not?)
@@ -92,14 +128,15 @@ def semismooth_newton(U, z, util_func, p1_type, p2_type, eps=1e-6):
 
     # Calculate F_i for each player via the indifference equation u(A_1) - u(A_2)
     # Player 1 is rows, player 2 is columns
-    row_a_1, row_a_2 = np.array([U[0, 0, 0], U[0, 1, 0]]), np.array([U[1, 0, 0], U[1, 1, 0]])
-    col_a_1, col_a_2 = np.array([U[0, 0, 1], U[1, 0, 1]]), np.array([U[0, 1, 1], U[1, 1, 1]])
+    p1_payoffs = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]])
+    p2_payoffs = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]])
     
     # Define the prob vectors for both: p1 is the probs player 2 players action 0 or 1, and vice versa
-    p_1_probs, p_2_probs = np.array([q, 1-q]), np.array([p, 1-p])
+    p1_probs = np.array([p * q, (1 - p) * q, p * (1 - q), (1 - p) * (1 - q)])
+    p2_probs = p1_probs
      
-    player_1_F = util_func(row_a_1, p_1_probs, p1_type) - util_func(row_a_2, p_1_probs, p1_type)
-    player_2_F = util_func(col_a_1, p_2_probs, p2_type) - util_func(col_a_2, p_2_probs, p2_type) 
+    player_1_F = util_func(p1_payoffs, p1_probs, p1_type) 
+    player_2_F = util_func(p2_payoffs, p2_probs, p2_type) 
     F_z = np.array([player_1_F, player_2_F])
 
     if abs(F_z[0]) < eps and abs(F_z[1]) < eps:

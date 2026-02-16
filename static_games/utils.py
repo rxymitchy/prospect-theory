@@ -49,7 +49,7 @@ def get_all_games():
                 [[0, 1], [1, 0]]     # Bottom/Left, Bottom/Right
             ]),
             'description': 'Ochs Game - PT equilibrium pathology',
-
+        },
         'CrawfordGame': {
             'payoffs': np.array([
                 [[1, -1], [0, 0]],    # Top/Left, Top/Right

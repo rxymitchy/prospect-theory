@@ -15,6 +15,7 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
 
     # Define Util Funtion:
     def util_func(values, probs, player_type):
+        values, probs = np.array(values), np.array(probs)
         if player_type == "EU":
             return probs @ values
 
@@ -37,7 +38,7 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
     alpha = 0.25
 
     # Set the discretized iteration
-    iter_list = np.linspace(0, 1, 200)
+    iter_list = np.linspace(0, 1, 201)
 
     # Set the flattened payoffs for players:
     p_1_payoffs = [U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]]
@@ -101,7 +102,7 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
             q = (1-alpha) * q + alpha * max_qval
 
             # Equilibrium check and logging
-            tol = 1e-8
+            tol = 1e-5
             if abs(p_old - p) < tol and abs(q_old - q) < tol:
                 key = f'p={round(p, 6)}, q={round(q, 6)}'
                 if key not in mixed_equil.keys():
