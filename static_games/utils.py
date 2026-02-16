@@ -13,8 +13,8 @@ def get_all_games():
         },
         'MatchingPennies': {
             'payoffs': np.array([
-                [[1, -1], [-1, 1]],   # H/H, H/T
-                [[-1, 1], [1, -1]]    # T/H, T/T
+                [[1, 0], [0, 1]],   # H/H, H/T
+                [[0, 1], [1, 0]]    # T/H, T/T
             ]),
             'description': 'Zero-sum Matching Pennies',
             'actions': ['Heads', 'Tails']
@@ -49,8 +49,7 @@ def get_all_games():
                 [[0, 1], [1, 0]]     # Bottom/Left, Bottom/Right
             ]),
             'description': 'Ochs Game - PT equilibrium pathology',
-            'actions': ['Top', 'Bottom']
-        },
+
         'CrawfordGame': {
             'payoffs': np.array([
                 [[1, -1], [0, 0]],    # Top/Left, Top/Right
