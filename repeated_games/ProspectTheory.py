@@ -12,6 +12,8 @@ class ProspectTheory:
 
     def value_function(self, x):
         """PT value function v(x)"""
+        # I chose to handle the reference point subtraction in the method to prevent the need for tracking the correct
+        # reference point in the training loop, seemed more modular and self contained this way
         x = x - self.r
         if x >= 0:
             return (x + 1e-10) ** self.alpha
@@ -35,7 +37,7 @@ class ProspectTheory:
             return p ** self.delta / (p ** self.delta + (1 - p) ** self.delta) ** (1 / self.delta)
 
     def cpt_gains(self, outcomes, probabilities):
-        # keep gains only
+        # keep gains only, outcomes == self.r won't matter anyways (v = 0)
         mask = outcomes > self.r
         x = outcomes[mask]
         p = probabilities[mask]
@@ -43,7 +45,7 @@ class ProspectTheory:
         if len(x) == 0:
             return 0.0
 
-        # sort gains ascending
+        # sort gains ascending, keeping probs and outcomes aligned (before transformation)
         order = np.argsort(x)
         x = x[order]
         p = p[order]
@@ -63,11 +65,13 @@ class ProspectTheory:
 
         # decision weights
         w_tail = np.array([self.w_plus(t) for t in tail], dtype=float)
+        # value function v
         v_x = np.array([self.value_function(xi) for xi in x], dtype=float)
         
         # We already have the cdf for each outcome, 
         # now we just need to shift it and add a 0 to preserve dimensions
         w_tail_next = np.concatenate([w_tail[1:], [0.0]])
+        # And then find the difference (right after equation 1 in the CPT paper)
         pi = w_tail - w_tail_next
 
         return float(np.sum(pi * v_x))
