@@ -27,7 +27,7 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
         '''Finds the max point in the curve given opponent probs'''
         max_v = -np.inf
         # Our values stay static
-        values = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0])
+        values = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]])
 
         # But we need to compute new probs for each of our possible p values
         # then get our max value (we don't care about tracking p, just the max value)
@@ -42,7 +42,7 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
         '''Finds the max point in the curve given opponent probs'''
         max_v = -np.inf
         # Our values stay static
-        values = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1])
+        values = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]])
 
         # But we need to compute new probs for each of our possible p values
         # then get our max value (we don't care about tracking p, just the max value)
@@ -107,19 +107,40 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
                 break
 
             if is_root:
-                z_round = np.round(z, 5)
-                key = f'equil = {tuple(z_round)}'
-                if key not in mixed_equil.keys():
-                    mixed_equil[key] = [f'p={p}, q={q}']
-                else:
-                    mixed_equil[key].append(f'p={p}, q={q}')
-                break
+                # Validate whether root is equilibrium, same as above
+                p_star, q_star = z
+  
+                # Ignore pure equilibria
+                if (abs(p_star - 1.0) <= 1e-5 or p_star <= 1e-5) and (abs(q_star - 1.0) <= 1e-5 or q_star <= 1e-5):
+                    break
+
+                probs = np.array([p_star * q_star, (1 - p_star) * q_star, p_star * (1 - q_star), (1 - p_star) * (1 - q_star)])
+
+                p1_stay = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]])
+                p2_stay = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]])
+
+                # Then we can compute two lotteries with opp probs fixed and stay/dev measured
+                v1_1, v1_2 = util_func(p1_stay, probs, p1_type), V1(q, p1_type)
+                v2_1, v2_2 = util_func(p2_stay, probs, p2_type), V2(p, p2_type)
+
+                tol = 1e-8
+
+                # So if both players want to stay, we are at equilibrium
+                if v1_1 >= v1_2 - tol and v2_1 >= v2_2 - tol:
+
+                    z_round = np.round(z, 5)
+                    key = f'equil = {tuple(z_round)}'
+                    if key not in mixed_equil.keys():
+                        mixed_equil[key] = [f'p={p}, q={q}']
+                    else:
+                        mixed_equil[key].append(f'p={p}, q={q}')
+                    break
 
     return pure_equil, mixed_equil
 
 
 
-def semismooth_newton(U, z, util_func, p1_type, p2_type, n_eps=1e-6):
+def semismooth_newton(U, z, util_func, p1_type, p2_type, eps=1e-6):
     # A semismooth newton solver for pt equilibrium
     # Step 1) Define starting conditions for each strategy (e.g. (0.5, 0.5))
     p, q = z
@@ -148,7 +169,7 @@ def semismooth_newton(U, z, util_func, p1_type, p2_type, n_eps=1e-6):
     delta = np.linalg.solve(jacobian, -F_z)
    
     # Step 5) clip and return the updated p, q values (with damping)
-    alpha = 0.5 # Step wise damping paremeter
+    alpha = 1.0 # Step wise damping paremeter
     z += alpha * delta
     z = np.clip(z, 0, 1)
 

@@ -1,6 +1,7 @@
 from static_games.ne_solver import compute_nash_equil
 from static_games.eb_solver import compute_eb_equilibrium 
 from static_games.ptne_solver import compute_ptne_equilibrium
+from static_games.fp_ptne_solver import compute_fp_ptne_equilibrium
 from static_games.ProspectTheory import ProspectTheory
 from static_games.utils import get_all_games
 
@@ -10,15 +11,16 @@ def main():
 	print("Static Equilibrium Solver")
 	print("Option 1: Compute NE (EU agents only)\n")
 	print("Option 2: Compute CPT-EB Equilibrium\n")
-	print("Option 3: Compute CPT-NE Equilibrium\n")
+	print("Option 3: Compute CPT-NE Equilibrium with SemiSmooth Newton Method\n")
+        print("Option 4: Compute CPT-NE Equilibrium with Gauss Seidel Fixed Point Iteration\n")
 	choice = 0
-	while choice not in [1, 2, 3]:
-		choice = int(input("Choose 1, 2, or 3, enter digit here: ").strip())
+	while choice not in [1, 2, 3, 4]:
+		choice = int(input("Choose 1, 2, 3, or 4 enter digit here: ").strip())
 		
-		if choice not in [1, 2, 3]:
+		if choice not in [1, 2, 3, 4]:
 			print("Bad Input, try again")
 
-	if choice in [2, 3]:
+	if choice in [2, 3, 4]:
 
 		# Select agent types 
 		print("\nPreference Types:\n")
@@ -110,16 +112,32 @@ def main():
 			print(f'{k} Num Seeds: {len(v)}\n')
 
 	elif choice == 3:
-		''' CPT-NE Logic '''
-		equil = compute_ptne_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
-		print(f'Game: {game_name}, Equilibrium (Key = equilibrium, value = starting points): {equil}')
+		''' Semismooth Newton CPT-NE Logic '''
+		pure_equil, mixed_equil = compute_ptne_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
+
+		print(f'Game: {game_name}, Pure Equilibrium: {pure_equil}')
+		print(f'Game: {game_name}, Mixed Equilibrium (Key = equilibrium, value = starting points): {mixed_equil}')
 
 
 		print(f'Equil. Summary:\n')
-		print(f'Number of Unique Mixed Equilibria: {len(equil.keys())}\n')
+		print(f'Number of Unique Mixed Equilibria: {len(mixed_equil.keys())}\n')
 		print('Number of Init Seeds that Converged to Each Equilibria:')
-		for k, v in equil.items():
+		for k, v in mixed_equil.items():
 			print(f'{k} Num Seeds: {len(v)}\n')
+
+	elif choice == 4:
+                ''' Fixed Point CPT-NE Logic '''
+                equil = compute_fp_ptne_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
+
+                print(f'Game: {game_name}, Mixed Equilibrium (Key = equilibrium, value = starting points): {equil}')
+
+
+                print(f'Equil. Summary:\n')
+                print(f'Number of Unique Mixed Equilibria: {len(equil.keys())}\n')
+                print('Number of Init Seeds that Converged to Each Equilibria:')
+                for k, v in equil.items():
+                        print(f'{k} Num Seeds: {len(v)}\n')
+
     
 
 

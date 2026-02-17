@@ -3,7 +3,7 @@ import copy
 import itertools
 
 
-def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
+def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
     """Compute the cpt equilibrium using the gauss seidel fixed point iteration.
        NOTE FOR CODE REVIEW: This function is only returning pure equilibria, and 
        even a pure equilibrium for crawford's game. This was unexpected, so please note that
