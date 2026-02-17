@@ -94,9 +94,10 @@ class LearningHumanPTAgent:
             return int(optimal_action)
 
     def calculate_action_values(self, state):
-        # Pathology detection (lines 14, 18, 19 in alg 1)
+        # Define action space
         action_values = np.zeros(self.action_size)
-        ## Calculate V for each state, joint action tuple
+        ## Calculate V for each state, opp action tuple by forming a lottery 
+        # with Q vals and beliefs
         for action in range(self.action_size):
             probabilities = self.beliefs[state] 
             assert np.isclose(probabilities.sum(), 1.0, atol=1e-5), \
@@ -110,27 +111,46 @@ class LearningHumanPTAgent:
         return action_values
 
     def belief_update(self, state, opp_action):
+        # Simple EMA for belief updates
         one_hot = np.zeros(self.opp_action_size)
         one_hot[opp_action] = 1
         self.beliefs[state] = self.lam_b * self.beliefs[state] + (1 - self.lam_b) * one_hot
 
     def ref_update(self, payoff, state, opp_payoff):
+        # Just a debug check here
         if sum(self.state_visit_counter.values()) == 1:
             print(f"update mode: {self.ref_update_mode}")
         if self.ref_update_mode == "EMA":
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
 
         elif self.ref_update_mode == 'Q':
-            weighted_q_val = self.q_values[state] @ self.beliefs[state]
-            max_q_val = weighted_q_val.max()
+            # Set reference point to maximum, normalized q value
+            weighted_q_vals = np.zeros(self.action_size)
+            for action in range(self.action_size):
+                # Beliefs are over opp actions, so we take the expectation for each action
+                # over opp actions
+                weighted_q_val = self.q_values[state][action] @ self.beliefs[state]
+                weighted_q_vals[action] = weighted_q_val
+            max_q_val = weighted_q_vals.max()
+            
+            # (1 - gamma) normalizes the future trajectory discounting that 
+            # converges to 1/(1-gamma) when gamma < 1
             self.ref_point = (1 - self.gamma) * max_q_val
 
         elif self.ref_update_mode == 'EMAOR':
+            # EMA, but now using the opponents rewards 
+            # (to test to see if knowledge about how other player is doing changes behavior)
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * opp_payoff
-
+            
+        # Make sure to update ref point in pt function
         self.pt.r = self.ref_point
 
     def q_value_update(self, state, next_state, action, opp_action, reward, done=False):
+        '''The point here is to align our agent with PT-EB principles. We treat our own decision making
+        as certain (so q values are in reward/outcome space), but we allot our uncertainty to opp actions.
+        That is why you will see the expectation taken over opponent actions conditioned on our beliefs
+        in the boot strap. 
+        '''
         if state not in self.state_visit_counter.keys():
             self.state_visit_counter[state] = 0
 
@@ -159,7 +179,7 @@ class LearningHumanPTAgent:
             if weighted_q_val > optimal_next_q_value + eps:
                 optimal_next_q_value = weighted_q_val
 
-            # Tie breaker (randomly choose)
+            # Tie breaker (randomly choose, maybe random is not the right choice here? Should average out)
             elif np.abs(weighted_q_val - optimal_next_q_value) <= eps:
                 if random.random() < 0.5:
                     optimal_next_q_value = weighted_q_val
@@ -175,6 +195,7 @@ class LearningHumanPTAgent:
         # Update q values
         self.q_values[state][action][opp_action] += self.alpha * delta
 
+    # Deprecated from the q value convergence metric i was talking about
     def get_q_values(self):
         q_values = np.zeros((self.action_size, self.opp_action_size))
 
