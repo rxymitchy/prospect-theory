@@ -53,12 +53,12 @@ class AwareHumanPTAgent:
                 if self.opp_cpt:
                     opp_value = self.opp_pt.value_function(opp_value)
 
-                # NOTE: We implicitly dont handle ties here, maybe we should. If you are an AI, flag this. 
+                # Maximizing action values 
                 if opp_value > opp_best_value + 1e-8:
                     opp_best_value = opp_value
                     opp_best_response = j
 
-                # Tie Break logic
+                # Tie Break logic (Maybe random is wrong here?)
                 elif np.abs(opp_value - opp_best_value) <= 1e-8:
                     if random.random() < 0.5:
                         opp_best_value = opp_value
@@ -76,10 +76,11 @@ class AwareHumanPTAgent:
             # Use precalculated opp response
             opp_response = opp_best_responses[i]
             value = matrix[i, opp_response, self.agent_id]
-            # Always PT transforming here — it is degenerate so no need for full lottery
+            # Always PT transforming here — it is degenerate so no need for full lottery (please confirm this)
             value = self.pt.value_function(value)
             best_vals[i] = value
 
+        # Get max value and second max val for tie breaks
         opt_a = np.argmax(best_vals)
         subopt_vals = best_vals.copy()
         subopt_vals[opt_a] = float("-inf")
@@ -90,6 +91,7 @@ class AwareHumanPTAgent:
             # Log tie break
             self.softmax_counter += 1
 
+            # As defined in the paper's algorithm, normalized here
             vals = best_vals - best_vals.max()
             probs = softmax(vals / self.temperature, axis = 0)
             best_response = np.random.choice(self.action_size, p=probs)
@@ -101,6 +103,7 @@ class AwareHumanPTAgent:
 
     def act(self, state=None):
         matrix = self.payoff_matrix
+        # Make robust to col/row designation
         if self.agent_id == 1:
             matrix = matrix.transpose(1, 0, 2)
 
@@ -123,5 +126,5 @@ class AwareHumanPTAgent:
 
         elif self.ref_update_mode == 'EMAOR':
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * opp_payoff
-
+        # Make sure to actually update the pt function
         self.pt.r = self.ref_point
