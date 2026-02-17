@@ -75,13 +75,14 @@ class AIAgent:
         curr_q_val = self.q_values[state][action]
         max_next_q_val = self.q_values[next_state].max()
 
+        # get rid of future trajectories when reaching end of episode
         if done is True:
             max_next_q_val = 0
 
         target = reward + self.gamma * max_next_q_val
         self.q_values[state][action] = (1 - self.alpha) * curr_q_val + self.alpha * target  
        
-
+    # Deprecated Code for the Q-Value convergence metric I was fixated on
     def get_q_values(self):
         q_values = torch.zeros(self.action_size, self.opp_action_size)
 
