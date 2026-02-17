@@ -44,8 +44,8 @@ def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
     p_1_payoffs = [U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]]
     p_2_payoffs = [U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]]
 
-    for init_p, init_q in init_list:
-        print(f'init_p: {init_p}, init_q: {init_q} search start')
+    for idx, (init_p, init_q) in enumerate(init_list):
+        print(f'\rIteration {idx + 1} / 25: (p, q) initialized at {init_p}, {init_q}', end='', flush=True)
         p, q = init_p, init_q
         current_step = 0
 
@@ -102,7 +102,7 @@ def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
             q = (1-alpha) * q + alpha * max_qval
 
             # Equilibrium check and logging
-            tol = 1e-5
+            tol = 1e-8
             if abs(p_old - p) < tol and abs(q_old - q) < tol:
                 key = f'p={round(p, 6)}, q={round(q, 6)}'
                 if key not in mixed_equil.keys():
@@ -110,5 +110,5 @@ def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
                 mixed_equil[key].append((init_p, init_q)) 
                 break
 
-    
+    print("\n")    
     return mixed_equil

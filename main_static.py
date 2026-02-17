@@ -12,7 +12,8 @@ def main():
 	print("Option 1: Compute NE (EU agents only)\n")
 	print("Option 2: Compute CPT-EB Equilibrium\n")
 	print("Option 3: Compute CPT-NE Equilibrium with SemiSmooth Newton Method\n")
-        print("Option 4: Compute CPT-NE Equilibrium with Gauss Seidel Fixed Point Iteration\n")
+	print("Option 4: Compute CPT-NE Equilibrium with Gauss Seidel Fixed Point Iteration\n")
+
 	choice = 0
 	while choice not in [1, 2, 3, 4]:
 		choice = int(input("Choose 1, 2, 3, or 4 enter digit here: ").strip())
@@ -126,17 +127,17 @@ def main():
 			print(f'{k} Num Seeds: {len(v)}\n')
 
 	elif choice == 4:
-                ''' Fixed Point CPT-NE Logic '''
-                equil = compute_fp_ptne_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
+		''' Fixed Point CPT-NE Logic '''
+		equil = compute_fp_ptne_equilibrium(payoff_matrix, pt, agent1_type, agent2_type)
 
-                print(f'Game: {game_name}, Mixed Equilibrium (Key = equilibrium, value = starting points): {equil}')
+		print(f'Game: {game_name}, Mixed Equilibrium (Key = equilibrium, value = starting points): {equil}')
 
 
-                print(f'Equil. Summary:\n')
-                print(f'Number of Unique Mixed Equilibria: {len(equil.keys())}\n')
-                print('Number of Init Seeds that Converged to Each Equilibria:')
-                for k, v in equil.items():
-                        print(f'{k} Num Seeds: {len(v)}\n')
+		print(f'Equil. Summary:\n')
+		print(f'Number of Unique Mixed Equilibria: {len(equil.keys())}\n')
+		print('Number of Init Seeds that Converged to Each Equilibria:')
+		for k, v in equil.items():
+			print(f'{k} Num Seeds: {len(v)}\n')
 
     
 

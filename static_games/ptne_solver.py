@@ -114,20 +114,22 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
                 if (abs(p_star - 1.0) <= 1e-5 or p_star <= 1e-5) and (abs(q_star - 1.0) <= 1e-5 or q_star <= 1e-5):
                     break
 
+                # Compute the stay (proposed roots) and deviate (any other p/q value) values
+
                 probs = np.array([p_star * q_star, (1 - p_star) * q_star, p_star * (1 - q_star), (1 - p_star) * (1 - q_star)])
 
                 p1_stay = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]])
                 p2_stay = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]])
 
                 # Then we can compute two lotteries with opp probs fixed and stay/dev measured
-                v1_1, v1_2 = util_func(p1_stay, probs, p1_type), V1(q, p1_type)
-                v2_1, v2_2 = util_func(p2_stay, probs, p2_type), V2(p, p2_type)
+                v1_1, v1_2 = util_func(p1_stay, probs, p1_type), V1(q_star, p1_type)
+                v2_1, v2_2 = util_func(p2_stay, probs, p2_type), V2(p_star, p2_type)
 
                 tol = 1e-8
 
                 # So if both players want to stay, we are at equilibrium
                 if v1_1 >= v1_2 - tol and v2_1 >= v2_2 - tol:
-
+                    # Track
                     z_round = np.round(z, 5)
                     key = f'equil = {tuple(z_round)}'
                     if key not in mixed_equil.keys():
@@ -169,14 +171,18 @@ def semismooth_newton(U, z, util_func, p1_type, p2_type, eps=1e-6):
     delta = np.linalg.solve(jacobian, -F_z)
    
     # Step 5) clip and return the updated p, q values (with damping)
-    alpha = 1.0 # Step wise damping paremeter
+    alpha = 0.5 # Step wise damping paremeter
     z += alpha * delta
     z = np.clip(z, 0, 1)
 
     return z, False 
 
 def F(p, q, util_func, U, player_action, p_type, p_id, opt_p=True, eps=1e-6, tau=0.1):
-    ''' A numerical computation of the jacobian matrix for the semismooth newton method
+    ''' A numerical computation of the mapping from p, q to the derivative for the curve for the semismooth newton method
+        Importantly, either p or q can be perturbed, but we hold static that p refers to player 1 and q to player 2
+        p_id is used to determine whether the player is the column or row player
+        opt_p is a boolean telling us whether to perturb p or q
+        tau is a step size parameter
     '''
     if opt_p: 
         if p - eps < 0.0:
@@ -205,7 +211,7 @@ def F(p, q, util_func, U, player_action, p_type, p_id, opt_p=True, eps=1e-6, tau
             q0, q1 = q - eps, q + eps
 
         probs_plus = np.array([q1 * p, (1 - q1) * p, q1 * (1 - p), (1 - q1) * (1 - p)])
-        probs_minus = np.array([q0 * p, (1 - q0) * p, q0 * (1 - p), (1 - q0) * (1 - p)])
+        probs_minus = np.array([q0 * p, (1 - p) * q0, p * (1 - q0), (1 - q0) * (1 - p)])
         denom = q1 - q0
 
 
@@ -228,7 +234,6 @@ def compute_jacobian(p, q, util_func, U, p1_type, p2_type, eps=1e-5):
     ''' A numerical computation of the jacobian matrix for the semismooth newton method
         Unlike EB, we ned to use the full lottery instead of preselecting pure actions,
         and we optimize over both p and q.
-        def F(p, q, util_func, U, player_action, p_type, p_id, opt_p=True, eps=1e-6, tau=0.1):
     '''
     # Check if we are near boundary
     if p - eps < 0.0:
