@@ -110,7 +110,7 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
                 # Validate whether root is equilibrium, same as above
                 p_star, q_star = z
   
-                # Ignore pure equilibria
+                # Ignore pure equilibria (computed above)
                 if (abs(p_star - 1.0) <= 1e-5 or p_star <= 1e-5) and (abs(q_star - 1.0) <= 1e-5 or q_star <= 1e-5):
                     break
 
@@ -118,10 +118,21 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
 
                 probs = np.array([p_star * q_star, (1 - p_star) * q_star, p_star * (1 - q_star), (1 - p_star) * (1 - q_star)])
 
-                p1_stay = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]])
-                p2_stay = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]])
+                p1_stay = np.array([U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]]) # row payoffs
+                p2_stay = np.array([U[0, 0, 1], U[1, 0, 1], U[0, 1, 1], U[1, 1, 1]]) # col payoffs
 
-                # Then we can compute two lotteries with opp probs fixed and stay/dev measured
+                '''
+                Then we can compute two lotteries with opp probs fixed and stay/dev measured
+                 vi_1 is just the value according to the player's preference of being at the proposed prob
+                 vi_2 uses the same grid searh functions for the pure equilibria search
+                 and passes the opposing players prob (to stay fixed)
+                 and then iterates over 201 of the player's action 0 probs. 
+                 Conceptually, we are checking the proposed maximum as compared to all other points in the strategy space
+
+                 I think about it as two see saws, in NE and EB we have flat see saws, but in PTNE the seesaws are curved
+                 and the curve changes with the probability changes, so we need to do a thorough check to make sure
+                 we are at a max because the entire landscape is constantly shifting. 
+                '''
                 v1_1, v1_2 = util_func(p1_stay, probs, p1_type), V1(q_star, p1_type)
                 v2_1, v2_2 = util_func(p2_stay, probs, p2_type), V2(p_star, p2_type)
 
@@ -143,7 +154,20 @@ def compute_ptne_equilibrium(U, pt, p1_type, p2_type):
 
 
 def semismooth_newton(U, z, util_func, p1_type, p2_type, eps=1e-6):
-    # A semismooth newton solver for pt equilibrium
+    '''
+    A semismooth newton solver for cpt equilibrium of beliefs. We are looking for zeros in the F(z) function
+    Here F(z) is the residual of the gradient ascent using the derivative of the value function provided.
+    Formally: F = p - clip(p + tau * derivative), where p is our prob and tau is a step size paramete.
+    We are looking for the point where the derivative is 0 (external scans prevent saddle points and minima)
+    
+    The basic formula is:
+    1) initialize z = p, q
+    2) get initial F(z) (if F(z) = 0, return
+    3) Comute Jacobian (derivative matrix to see how small perturbations in p, q influence F)
+        a) used finite difference, not anything analytical
+    4) solve linear equation x = J^-1 (-F(z)) to find where the function hits 0
+    5) update z with x, repeat if needed (outer loop)
+    '''
     # Step 1) Define starting conditions for each strategy (e.g. (0.5, 0.5))
     p, q = z
     # Step 2) Map the probabilities z = p, q into F space
@@ -182,6 +206,7 @@ def F(p, q, util_func, U, player_action, p_type, p_id, opt_p=True, eps=1e-6, tau
         Importantly, either p or q can be perturbed, but we hold static that p refers to player 1 and q to player 2
         p_id is used to determine whether the player is the column or row player
         opt_p is a boolean telling us whether to perturb p or q
+        Importantly, p_id and opt_p are independent so they must be tracked separately (different cells of jacobian)
         tau is a step size parameter
     '''
     if opt_p: 
@@ -210,7 +235,7 @@ def F(p, q, util_func, U, player_action, p_type, p_id, opt_p=True, eps=1e-6, tau
             # central difference
             q0, q1 = q - eps, q + eps
 
-        probs_plus = np.array([q1 * p, (1 - q1) * p, q1 * (1 - p), (1 - q1) * (1 - p)])
+        probs_plus = np.array([q1 * p, (1 - p) * q1, (1-q1) * p, (1 - q1) * (1 - p)])
         probs_minus = np.array([q0 * p, (1 - p) * q0, p * (1 - q0), (1 - q0) * (1 - p)])
         denom = q1 - q0
 
