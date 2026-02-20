@@ -8,6 +8,24 @@ def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
        NOTE FOR CODE REVIEW: This function is only returning pure equilibria, and 
        even a pure equilibrium for crawford's game. This was unexpected, so please note that
        current surprise.
+
+       Formally, we have a cartesian product of starting points "init_list" ( just in case starting conditions matter, 
+       with grid search that seems somewhat less likely). 
+       We then define a grid to iterate over "iter_list" that discretizes the probability space. 
+      
+       We iterate over the starting points, and within each iteration search for the max p in the grid search, 
+       and use that max p to help find the max q. 
+       
+       Importantly, we use damping, or stepwise updates to 
+       gradually nudge towards the next p value instead of replacing. The point is to prevent oscillation or skipping. 
+
+       The stoppping condition is if the old p and q values are both within the tolerance (1e-8) 
+       of the new p and q value — that is, they are no longer moving.
+
+       Important parameters are:
+       - alpha (stepwise damping variable), currently set to 0.25. 
+       - tol, the tolerance for accepting an equilibrium, 
+       - n_grids, the amount of grid points we search. 
     """
 
     # Define equilibria variables
@@ -26,9 +44,7 @@ def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
     starting_points = [0.1, 0.3, 0.5, 0.7, 0.9]
     init_list = itertools.product(starting_points, starting_points)
 
-    # Define max p1 and p2 vals
-    max_p1, max_p2 = 0, 0
-
+    # Stopping condition
     max_steps = 300
 
     # Define eps for tie breaks
@@ -37,8 +53,9 @@ def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
     # Alpha for damping
     alpha = 0.25
 
-    # Set the discretized iteration
-    iter_list = np.linspace(0, 1, 201)
+    # Set the discretized iteration. This could be higher for final runs, but 201 seems okay for now. 
+    n_grids = 201
+    iter_list = np.linspace(0, 1, n_grids)
 
     # Set the flattened payoffs for players:
     p_1_payoffs = [U[0, 0, 0], U[1, 0, 0], U[0, 1, 0], U[1, 1, 0]]
@@ -75,6 +92,7 @@ def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
            
             # Guass Seidel
             p_old = p
+            # Damping update, similar to ema
             p = (1-alpha) * p + alpha * max_pval
 
 
@@ -83,15 +101,16 @@ def compute_fp_ptne_equilibrium(U, pt, p1_type, p2_type):
             max_qval = q
 
             for q_i in iter_list:
-                probs = [p * q_i, (1 - p) * q_i, p * (1 - q_i), (1 - p) * (1 - q_i)]
+                probs = [p * q_i, (1 - p) * q_i, p * (1 - q_i), (1 - p) * (1 - q_i)] # note same order
                 value = util_func(p_2_payoffs, probs, p2_type)
-                if value > max_value_2 + eps:
+                if value > max_value_2 + eps: # better max, update
                     max_value_2 = value
                     max_qval = q_i
             
                 # Tie breaking: choose q val closest to current q (minimize size of step)
                 elif abs(value - max_value_2) <= eps:
-                    # Choose q val closest to the current q
+                    # Tiebreak logic: Choose q val closest to the current q
+                    # the point is to just minimize the size of the jump
                     q_old_dist, q_new_dist = abs(max_qval - q), abs(q_i - q)
                     if q_old_dist > q_new_dist:
                         max_qval = q_i
