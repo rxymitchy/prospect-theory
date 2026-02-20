@@ -227,4 +227,93 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     plt.tight_layout()
     plt.show()
 
+def compare_all_results(all_results, game_name):
+    """Compare performance across all matchups"""
+
+    print("\n" + "="*80)
+    print(f"COMPARISON ACROSS ALL MATCHUPS: {game_name}")
+    print("="*80)
+
+    comparison_data = []
+
+    for matchup_key, data in all_results.items():
+        results = data['results']
+
+        if results['avg_rewards1'] and len(results['avg_rewards1']) >= 50:
+            final_avg1 = np.mean(results['avg_rewards1'][-50:])
+            final_avg2 = np.mean(results['avg_rewards2'][-50:])
+            std1 = np.std(results['avg_rewards1'][-50:])
+            std2 = np.std(results['avg_rewards2'][-50:])
+
+            comparison_data.append({
+                'Matchup': matchup_key,
+                'Agent1_Avg': final_avg1,
+                'Agent1_Std': std1,
+                'Agent2_Avg': final_avg2,
+                'Agent2_Std': std2,
+                'Total_Avg': (final_avg1 + final_avg2) / 2,
+                'Difference': abs(final_avg1 - final_avg2)
+            })
+
+    # Create comparison table
+    if comparison_data:
+        df = pd.DataFrame(comparison_data)
+        df = df.sort_values('Total_Avg', ascending=False)
+
+        print("\nPerformance Comparison (last 50 episodes):")
+        print(df.to_string(index=False))
+
+        # Visualization
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+        # Bar plot of average rewards
+        matchups = df['Matchup'].tolist()
+        agent1_avgs = df['Agent1_Avg'].tolist()
+        agent2_avgs = df['Agent2_Avg'].tolist()
+
+        x = np.arange(len(matchups))
+        width = 0.35
+
+        ax1.bar(x - width/2, agent1_avgs, width, label='Agent 1', alpha=0.7)
+        ax1.bar(x + width/2, agent2_avgs, width, label='Agent 2', alpha=0.7)
+        ax1.set_xlabel('Matchup')
+        ax1.set_ylabel('Average Reward')
+        ax1.set_title(f'Average Rewards by Matchup\n{game_name}')
+        ax1.set_xticks(x)
+        ax1.set_xticklabels(matchups, rotation=45, ha='right')
+        ax1.legend()
+        ax1.grid(True, alpha=0.3, axis='y')
+
+        # Heatmap of total average
+        matchup_matrix = np.zeros((3, 3))
+        matchup_names = ['Aware_PT', 'Learning_PT', 'AI']
+
+        for i, agent1 in enumerate(matchup_names):
+            for j, agent2 in enumerate(matchup_names):
+                key = f"{agent1}_vs_{agent2}"
+                if key in all_results:
+                    results = all_results[key]['results']
+                    if results['avg_rewards1']:
+                        avg1 = np.mean(results['avg_rewards1'][-50:])
+                        avg2 = np.mean(results['avg_rewards2'][-50:])
+                        matchup_matrix[i, j] = (avg1 + avg2) / 2
+
+        im = ax2.imshow(matchup_matrix, cmap='viridis')
+        ax2.set_xticks(range(len(matchup_names)))
+        ax2.set_yticks(range(len(matchup_names)))
+        ax2.set_xticklabels(matchup_names)
+        ax2.set_yticklabels(matchup_names)
+        ax2.set_title('Total Average Reward Heatmap')
+
+        # Add text annotations
+        for i in range(len(matchup_names)):
+            for j in range(len(matchup_names)):
+                text = ax2.text(j, i, f'{matchup_matrix[i, j]:.2f}',
+                              ha="center", va="center", color="w")
+
+        plt.colorbar(im, ax=ax2)
+        plt.tight_layout()
+        plt.show()
+
+    return comparison_data
 
