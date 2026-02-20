@@ -168,10 +168,11 @@ class AwareHumanPTAgent:
                 [[0, -3], [-2, -2]]    # D/C, D/D
             ])
         '''
-        # We don't take the pt transformation here because in learning and value space we use raw outcomes 
-        # good for parity and consistency with LH, but please let me know if should be transformed
+        # We take the pt transformation just like with LH
         elif self.ref_update_mode == 'Q':
-            self.ref_point = self.payoff_matrix[:,:,self.agent_id].max()
+            payoffs = self.payoff_matrix[:,:,self.agent_id].flatten()
+            values = np.array([self.pt.value_function(po) for po in payoffs])
+            self.ref_point = values.max()
 
         # same deal just over opp rewards
         elif self.ref_update_mode == 'EMAOR':
