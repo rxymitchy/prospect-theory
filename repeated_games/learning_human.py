@@ -5,9 +5,7 @@ from scipy.special import softmax
 
 class LearningHumanPTAgent:
     """
-    Learning Human PT Agent
-    Doesn't know game structure, learns via RL
-    Transforms rewards through PT
+    Learning Human PT Agent Doesn't know game structure, learns via RL, PT preferences at decision time
     """
 
     def __init__(self, state_size, action_size, opp_action_size, pt_params, agent_id=0, ref_setting='Fixed', lambda_ref=0.95):
@@ -23,37 +21,42 @@ class LearningHumanPTAgent:
         self.beliefs = dict()
         self.q_values = dict()
 
-        # Initialize belief and reference point lambda parameters (subject to tuning)
+        # Initialize belief and reference point lambda parameters. 0.95 is a standard setting, carries across episodes
         self.lam_b = 0.95
         self.lam_r = lambda_ref
 
         # Set reference point update mode:
-        self.ref_update_mode = ref_setting # options: Fixed, EMA, Q
+        # options: Fixed, EMA, Max Q value (conditioned on beliefs over opp actions), 
+        # EMAOR (Opponent reward not own reward)
+        self.ref_update_mode = ref_setting 
         print(self.ref_update_mode, ref_setting)
        
         # Add an entry for each state populated with uniform probabilities over opponent action set size
         # And initialize q values
         for state in range(self.state_size):
-            # Belief function
+            # Belief function is size: opp action size because they are beliefs over opponent actions
+            # we divide by the action size to get equiprobably starting points
             self.beliefs[state] = np.ones(self.opp_action_size) / self.opp_action_size
             
-            # Q-values
+            # Q-values Q(s, a_i, a_-i) represent joint action estimates
             self.q_values[state] = np.zeros((self.action_size, self.opp_action_size)) 
 
+        # track state visits for analysis
         self.state_visit_counter = dict()
+        # Track pathology triggers
         self.softmax_counter = 0
 
-        # Q-learning parameters
-        self.gamma = 0.95
+        # Q-learning parameters, all from paper. Perhaps gamma could be set to 0.99?
+        self.gamma = 0.95 
         self.epsilon = 0.3
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
-        self.alpha = 0.01
+        self.alpha = 0.01 # standard alpha value from what I can tell
 
         # Pathology Detection parameters
-        self.tau = 0.1
-        ## subject to change
-        self.temperature = 1.3 
+        self.tau = 0.1 # Threshold parameter
+
+        self.temperature = 1.3 # softmax temperature, high to encourage randomness in the tie breaks for exploration
 
         # Track raw vs PT rewards
         self.raw_rewards = []
@@ -65,16 +68,21 @@ class LearningHumanPTAgent:
             return random.randrange(self.action_size)
 
         # Pathology detection (lines 14, 18, 19 in alg 1)
+        ## Generate action values (see method below)
         action_values = self.calculate_action_values(state)
 
-        ## Identify Optimal action
+        ## Identify Optimal action for tie break check
         optimal_action = np.argmax(action_values) 
         
-        ## Identify second best action
+        ## Identify second best action for tie break check
+        ### copy to prevent mutating original
         non_optimal_actions = action_values.copy()
+        ### remove the best action
         non_optimal_actions[optimal_action] = -np.inf
+        ### take the best action with the original best action removes
         second_best_action = non_optimal_actions.max()
 
+        ### find the difference
         gap = action_values[optimal_action] - second_best_action
         #print(f"[Debug] gap value LH: {gap}")
 
@@ -82,14 +90,16 @@ class LearningHumanPTAgent:
         if gap < self.tau:
             self.softmax_counter += 1
             ##Softmax
-            ## Normalize 
+            ## Normalize to help prevent logit explosion, doesnt change answer just stability
             vals = action_values - action_values.max()
+            # Recall temp is set to 1.3
             action_probs = softmax(vals/self.temperature, axis=0)
-            # Sample action
+            # Sample action randomly with the softmax odds
             action = np.random.choice(len(action_probs), p=action_probs)
             return action
         
         # Optimal Action (lins 20, 21 in alg 1)
+        # If its not a tie, we just return the best option. 
         else:
             return int(optimal_action)
 
@@ -98,14 +108,27 @@ class LearningHumanPTAgent:
         action_values = np.zeros(self.action_size)
         ## Calculate V for each state, opp action tuple by forming a lottery 
         # with Q vals and beliefs
+        # The idea here is that each effective Q value Q(s, a) is conditioned on 
+        # the beliefs over what the opp reply will be. 
+        # Otherwise we would just be naively estimating values. 
+        # Models how humans learn from experience, 
+        # ***this holds for one shot and repeated***
         for action in range(self.action_size):
             probabilities = self.beliefs[state] 
+
+            # An old safeguard
             assert np.isclose(probabilities.sum(), 1.0, atol=1e-5), \
             "Beliefs don't sum to 1"
 
+            # select the opp action values (x, y) for the current state action pair
+            # length self.opp_action_size
             outcomes = self.q_values[state][action]
 
+            # PT transformation using opp action values and beliefs, 
+            # introduces human warping instead of just integrating
             action_val = self.pt.expected_pt_value(outcomes, probabilities) 
+
+            # Update the list
             action_values[action] = action_val
 
         return action_values
@@ -120,21 +143,29 @@ class LearningHumanPTAgent:
         # Just a debug check here
         if sum(self.state_visit_counter.values()) == 1:
             print(f"update mode: {self.ref_update_mode}")
+
+        # Just slowly moving in the new direction instead of all at once, this seems sufficient for our pruposes
+        # alternatively we could do some kind of bayesian update, but that feels like overkill to me
         if self.ref_update_mode == "EMA":
             self.ref_point = self.lam_r * self.ref_point + (1 - self.lam_r) * payoff
 
+        # This is where we select the max Q val for our reference point (very greedy human)
+        # We talked about this in meeting a couple of times, please let me know if it holds
         elif self.ref_update_mode == 'Q':
             # Set reference point to maximum, normalized q value
             weighted_q_vals = np.zeros(self.action_size)
             for action in range(self.action_size):
-                # Beliefs are over opp actions, so we take the expectation for each action
-                # over opp actions
-                weighted_q_val = self.q_values[state][action] @ self.beliefs[state]
+                # Beliefs are over opp actions, so we take the PT transformation for the lottery here 
+                # I chose the PT transformation for the reference point and not the expectation
+                # because our reference point is a part of our decision making process, not learning, which
+                # we defined as pt warped and not in outcome space
+                weighted_q_val = self.pt.expected_value(self.q_values[state][action], self.beliefs[state])
                 weighted_q_vals[action] = weighted_q_val
             max_q_val = weighted_q_vals.max()
             
             # (1 - gamma) normalizes the future trajectory discounting that 
             # converges to 1/(1-gamma) when gamma < 1
+            # This way the ref point is still on the same scale as the payoffs
             self.ref_point = (1 - self.gamma) * max_q_val
 
         elif self.ref_update_mode == 'EMAOR':
@@ -156,7 +187,7 @@ class LearningHumanPTAgent:
 
         self.state_visit_counter[state] += 1
 
-        ## next state is necessary for double auction game
+        ## get next state for q vals and beliefs
         q_values = self.q_values[next_state]
         beliefs = self.beliefs[next_state]
         #print(f"beliefs: {beliefs}")
@@ -170,9 +201,12 @@ class LearningHumanPTAgent:
         # Integrate out opp actions (Q(s, a_i, a_-i) -> Q(s, a_i)) in line with PT EB philosophy
         # Then get the max for the bellman update (max Q(s, a))
         for a_prime in range(self.action_size):
-            q_val = q_values[a_prime]
+            q_val = q_values[a_prime] # recall that we have already selected the next state above
 
             # linear expectation of beliefs and values (integrate out opp acts)
+            # no pt here because we don't want non linearities in the learning space, just in the decision space
+            # preserves rl guarantees and behavior, importantly
+            # Future work could include the pt transformation here, Phade did it in one of the papers i found
             weighted_q_val = np.dot(beliefs, q_val)
 
             # We are maximizing for bellman update
@@ -187,6 +221,7 @@ class LearningHumanPTAgent:
         # Get stored value (state, joint action value) for bootstrap 
         q_value = self.q_values[state][action][opp_action]
 
+        # terminal state, no future returns
         if done:
             optimal_next_q_value = 0.0
 
@@ -196,6 +231,7 @@ class LearningHumanPTAgent:
         self.q_values[state][action][opp_action] += self.alpha * delta
 
     # Deprecated from the q value convergence metric i was talking about
+    # im not removing it because I am attached to it, but its not hurting anything
     def get_q_values(self):
         q_values = np.zeros((self.action_size, self.opp_action_size))
 
