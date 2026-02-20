@@ -152,8 +152,8 @@ class AwareHumanPTAgent:
         EMAOR just sets reference point conditioned on opp rewards (we had a conversation talking about the psychology
         of how good it *could* be)
         Fixed doesnt get updated, its fixed
-        Still made sense to update the reference points for the AH, technically this is learning though so maybe 
-        you want to handle it another way
+        Still made sense to update the reference points for the AH, 
+        ***technically this is learning though so maybe you want to handle it another way***
         '''
         # here it made sense to keep the reference point 
         if self.ref_update_mode == "EMA":
