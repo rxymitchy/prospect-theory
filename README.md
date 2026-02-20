@@ -22,9 +22,13 @@ Aware Human (AH): **aware_human.py** implements a best reply agent *with no rein
 
 All agents use a softmax tie break for when action probabilities are within $\tau$ of each other to randomize when there is no decisive action. 
 
-#### Environment and Training
+#### Environment, Analysis, and Training
 
 Game Env: **game_env.py** is where the 2x2 matrix games are stored. States are labeled with a base 4 encoding of joint actions, added together to turn a full history into a unique integer. Specifically, (0,0)->0 (0,1)->1 (1,0)->2 (1,1)->3. These joint action pair encodings are added into a state integer variable that is weighted by the place of the joint action in the history. 
           **double_action.py** uses a similar base n^2 state encoding system, where n is the action size for each player. The double auction game uses midpoint pricing if a trade goes through, and rewards of 0 otherwise (could do -1 to encourage exploration?)
 
-Training: **
+Training: **train.py** train_agents() initializes the environment, tracks rewards, actions, q values and ref points for each agent, and steps through the environment episodically. Each round played updates reference points, beliefs, and q values. Importantly, the AH gets the opponent reference point updated each round for its calculus. Epsilon is updated at the end of each episode with a minimum of 0.01.
+                       run_complete_experiment() is a wrapper for train_agents, automating the full cycle through the loop. I currently a not using this function, which is why some of the code is a little dubious (e.g. the matchups dont account for the agent typs being on the other side, that is row/col and also col/row). It's probably not worth checking this, I am going to stay in the custom matchup logic and manually recombine. 
+
+Analysis: **analyze.py** analyze_matchup() includes a cumulative rewards/time plot, a ref point over time plot, an action heat map, a Q-value convergence plot (how are q values converging to the real payoffs), a learning convergence plot (how much are q values changing), and then action frequency charts for each player. 
+                         compare_all_results() is essentially deprecated and a part of the run complete experiment wrapper. 
