@@ -1,6 +1,6 @@
 import torch
 import random
-from torch.nn import Softmax
+from scipy.special import Softmax
 
 class AIAgent:
     """Standard RL agent without PT"""
@@ -15,38 +15,44 @@ class AIAgent:
         self.q_values = dict()
        
         # Add an entry for each state 
-        # And initialize q values
+        # And initialize q values as Q(s, a), no opponent conditioning because no beliefs for AI
         for state in range(self.state_size):
             self.q_values[state] = torch.zeros(self.action_size) 
 
         # state counter
         self.state_visit_counter = dict()
 
-        # Q-learning parameters
+        # Q-learning parameters, set from code i inherited, and all is converging so I see no issue. 
         self.gamma = 0.95
         self.epsilon = 0.3
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.995
         self.alpha = 0.01
 
-        # tiebreaker
-        self.tau = 0.1
-        self.temp = 0.7
-        self.softmax = Softmax(dim=0)
+        # tiebreaker variables
+        self.tau = 0.1 # threshold
+        self.temp = 1.3 # softmax temp, high to encourage randomness
+        self.softmax = Softmax(axis=0)
         self.softmax_counter = 0
 
     def act(self, state):
-
+        # Epsilon greedy
         if random.random() < self.epsilon:
             return random.randrange(self.action_size)
 
+        # Get optimal action from q values for this state
         q_values = self.q_values[state]
         optimal_action = torch.argmax(q_values).item() 
 
-        suboptimal_q_values = q_values.clone()
-        suboptimal_q_values[optimal_action] = -torch.inf
-        second_best_action = torch.argmax(suboptimal_q_values).item()
+        # Get the second best value for pathology detection
+        # Copy to prevent editing original list
+        suboptimal_q_values = q_values.copy()
+        # mask out current best
+        suboptimal_q_values[optimal_action] = -np.inf
+        # get best in list with current best msked
+        second_best_action = np.argmax(suboptimal_q_values)
 
+        # find difference between best and second best
         gap = q_values[optimal_action] - q_values[second_best_action]
 
         if gap < self.tau:
@@ -55,15 +61,18 @@ class AIAgent:
 
             vals = q_values - q_values.max() # Normalize to prevent explosions
             probs = self.softmax(vals / self.temp)
-            action = torch.multinomial(probs, 1).item() # sample
+            action = np.random.choice(len(probs), p=probs) # sample
 
             return action
 
+        # theres no tie, just return the best
         else:
             return optimal_action
  
 
     def update(self, state, action, next_state, reward=None, done=False):
+        ''' Just vanilla q learning here, no PT and nothing fancy like with the beliefs. 
+        '''
         assert reward is not None, "Reward Undefined"
         
         # Update state count
@@ -72,17 +81,24 @@ class AIAgent:
 
         self.state_visit_counter[state] += 1
 
+        # Get the present state value
         curr_q_val = self.q_values[state][action]
+
+        # Get the max val for the next state
         max_next_q_val = self.q_values[next_state].max()
 
         # get rid of future trajectories when reaching end of episode
         if done is True:
             max_next_q_val = 0
 
+        # TD update
         target = reward + self.gamma * max_next_q_val
+
+        # COnvex combination style, just a stylistic difference not a numeric one
         self.q_values[state][action] = (1 - self.alpha) * curr_q_val + self.alpha * target  
        
     # Deprecated Code for the Q-Value convergence metric I was fixated on
+    # keeping it in because, im attached
     def get_q_values(self):
         q_values = torch.zeros(self.action_size, self.opp_action_size)
 
