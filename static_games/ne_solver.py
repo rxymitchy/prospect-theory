@@ -3,7 +3,17 @@ import numpy as np
 import itertools
 
 def compute_nash_equil(payoff_matrix):
-    """Find classical Nash equilibria analytically for 2x2 games"""
+    """
+    Find classical Nash equilibria analytically for 2x2 games
+    We use best reply dynamic for the pure strategies, and then analytically compute the indifference condition
+    to get the mixed equilibria. 
+
+    For pure, the stopping condition is whether both actions are better than deviating. 
+
+    The full derivation for the analytical mixed equilibria solving is below. 
+
+    
+    """
     pure_NE = []
     mixed_NE = None
 
@@ -29,11 +39,14 @@ def compute_nash_equil(payoff_matrix):
     Derivation (only player 2 for brevity):
     player 2 indifference = p(U_0,0) + (1-p)(U_1,0) = p(U_0,1) + (1-p)(U_1,1) # Rows change on each side, columns are constant on each side
     Simplied to: p(U_0,0) + U_1,0 - p(U_1,0) = p(U_0,1) + U_1,1 - p(U_1,1)
-    Get P on left side: p(U_0,0 - U_1,0 - U_0,1 + U_1,1) # This is A = U_1,1 - U_1,0 # This is B
+    Get P on left side: p(U_0,0 - U_1,0 - U_0,1 + U_1,1) = U_1,1 - U_1,0 
+                                    A                         B
+    so to get p we divide by A on both sides, p = B/A
     '''
     A = payoff_matrix[0, 0, 1] - payoff_matrix[0, 1, 1] - payoff_matrix[1, 0, 1] + payoff_matrix[1, 1, 1]
     B = payoff_matrix[1, 1, 1] - payoff_matrix[1, 0, 1]
 
+    # Making sure A doesnt blow up our mix
     if abs(A) > 1e-10:
         p_mixed = B / A
         # q such that player 1 is indifferent
@@ -41,17 +54,20 @@ def compute_nash_equil(payoff_matrix):
         C = payoff_matrix[0, 0, 0] - payoff_matrix[1, 0, 0] - payoff_matrix[0, 1, 0] + payoff_matrix[1, 1, 0]
         D = payoff_matrix[1, 1, 0] - payoff_matrix[0, 1, 0]
 
+        # Making sure C doesn't blow up our mix
         if abs(C) > 1e-10:
             q_mixed = D / C
 
             # Check if valid probabilities
             if 0 <= p_mixed <= 1 and 0 <= q_mixed <= 1:
                 # Check if it's not already a pure strategy
+                # we just want mixed strategies here
                 if not (abs(p_mixed) < 1e-10 or abs(p_mixed-1) < 1e-10 or
                         abs(q_mixed) < 1e-10 or abs(q_mixed-1) < 1e-10):
                     mixed_NE = (p_mixed, q_mixed)
 
     if not pure_NE and mixed_NE is None:
+        # just a catch, if this did show up for any of our games something is terribly wrong
         raise RuntimeError("Equilibrium exists theoretically, but solver missed it.")
 
 
