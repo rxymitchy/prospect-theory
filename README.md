@@ -32,3 +32,10 @@ Training: **train.py** train_agents() initializes the environment, tracks reward
 
 Analysis: **analyze.py** analyze_matchup() includes a cumulative rewards/time plot, a ref point over time plot, an action heat map, a Q-value convergence plot (how are q values converging to the real payoffs), a learning convergence plot (how much are q values changing), and then action frequency charts for each player. 
                          compare_all_results() is essentially deprecated and a part of the run complete experiment wrapper. 
+
+#### Prospect Theory and Utils
+
+Prospect Theory: **prospect_theory.py** implements cumulative prospect theory by first taking in outcomes and probabilities, sorting them by the same index, splitting them into gains and losses via the reference point, and then taking the cumulative and decumulative sums of the probabilities respectively, findingt he difference between successive lottery cum. probs, and then feeding the lotteries into the probability weighting function and value function to output a final value. 
+Importantly, note that the value function uses the internal representation of the reference point to calculate the value internally, so its important to be 100% sure that each PT agent in train.py is updating their reference point in place in their instance of ProspectTheory(). 
+
+**utils.py** stores the payoff matrices and a smoothing function for plotting. 
