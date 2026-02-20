@@ -6,7 +6,8 @@ from IPython.display import clear_output, display
 import warnings
 warnings.filterwarnings('ignore')
 import pandas as pd
-from repeated_games.train import run_complete_experiment, compare_all_results, train_agents 
+from repeated_games.train import run_complete_experiment, train_agents 
+from repeated_games.analyze import compare_all_results
 from repeated_games.baseline import compare_algorithms, plot_comparison
 
 from repeated_games import (
@@ -37,13 +38,11 @@ def interactive_experiment():
         print("MAIN MENU")
         print("="*80)
         print("\nOptions:")
-        print("1. Run quick demonstration (fast)")
-        print("2. Run complete experiment for a specific game")
-        print("3. Compare all games (summary)")
-        print("4. Run custom matchup")
-        print("5. Run Algorithm 1 vs Fictitious Play comparison")  
-        print("6. Run Double Auction Game (Still Under Construction)")
-        print("7. Exit")
+        print("1. Run complete experiment for a specific game")
+        print("2. Compare all games (summary)")
+        print("3. Run custom matchup")
+        print("4. Run Double Auction Game (Still Under Construction)")
+        print("5. Exit")
 
         choice = input("\nEnter choice (1-7): ").strip()
 
@@ -95,66 +94,8 @@ def interactive_experiment():
                     print("invalid input, try again")
 
             pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': gamma, 'r': r, 'delta':delta}
-             
 
-
-        if choice == '1':
-            # Quick demo
-            # Im not updating this branch with the new logic so it will fail.
-            print("\nRunning quick demonstration with Prisoner's Dilemma...")
-            game_name = 'PrisonersDilemma'
-            payoff_matrix = games[game_name]['payoffs']
-
-            # Run a quick version
-            env = RepeatedGameEnv(payoff_matrix, horizon=50, state_history=1)
-
-            # Create agents
-            action_size = 2
-            agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0, ref_setting=ref_setting)
-            agent2 = AIAgent(env.state_size, 2, 1)
-
-            agent1_type = "Learning_PT"
-            agent2_type = "Aware_PT" 
-            
-            br_dict = {'agent1_type': agent1_type, 'agent2_type': agent2_type, 'pt_params': pt_params, 'ref_setting': ref_setting, 'ref_lambda': ref_lambda}
-
-            print("\nTraining Aware PT vs AI for 100 episodes...")
-            results = train_agents(agent1, agent2, env, br_dict, episodes=100, verbose=False)
-
-            # Quick analysis
-            final_avg1 = np.mean(results['avg_rewards1'][-20:]) if results['avg_rewards1'] else 0
-            final_avg2 = np.mean(results['avg_rewards2'][-20:]) if results['avg_rewards2'] else 0
-
-            print(f"\nQuick Results:")
-            print(f"  Aware PT Agent: {final_avg1:.3f}")
-            print(f"  AI Agent: {final_avg2:.3f}")
-
-            # Simple plot
-            plt.figure(figsize=(10, 4))
-            plt.subplot(1, 2, 1)
-            plt.plot(results['avg_rewards1'], label='Aware PT')
-            plt.plot(results['avg_rewards2'], label='AI')
-            plt.xlabel('Episode')
-            plt.ylabel('Average Reward')
-            plt.title('Learning Curves')
-            plt.legend()
-            plt.grid(True, alpha=0.3)
-
-            plt.subplot(1, 2, 2)
-            if results['actions1']:
-                last_actions = results['actions1'][-1][-20:]
-                plt.plot(last_actions, 'o-', label='Aware PT Actions')
-                plt.xlabel('Round (last 20)')
-                plt.ylabel('Action')
-                plt.title('Final Strategy Pattern')
-                plt.legend()
-                plt.grid(True, alpha=0.3)
-                plt.yticks([0, 1])
-
-            plt.tight_layout()
-            plt.show()
-
-        elif choice == '2':
+        elif choice == '1':
             # Complete experiment for specific game
             print("\nAvailable games:")
             for i, (name, data) in enumerate(games.items(), 1):
@@ -183,7 +124,7 @@ def interactive_experiment():
                 all_results = run_complete_experiment(game_name, payoff_matrix, ref_setting=ref_setting, pt_params=pt_params)
                 compare_all_results(all_results, game_name)
 
-        elif choice == '3':
+        elif choice == '2':
             # Compare all games
             print("\nRunning summary comparison across all games...")
 
@@ -250,7 +191,7 @@ def interactive_experiment():
                 plt.tight_layout()
                 plt.show()
 
-        elif choice == '4':
+        elif choice == '3':
             # Custom matchup
             print("\nCustom Matchup Configuration")
             print("-"*40)
@@ -365,40 +306,8 @@ def interactive_experiment():
 
             analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params)
 
-        elif choice == '5':
-            # Algorithm 1 vs Fictitious Play comparison
-            print("\nRunning Algorithm 1 vs Fictitious Play comparison...")
-            
-            # Select game
-            print("\nAvailable games:")
-            for i, (name, data) in enumerate(games.items(), 1):
-                print(f"{i}. {name}: {data['description']}")
-            
-            game_choice = input("\nEnter game number: ").strip()
-            game_names = list(games.keys())
-            
-            if game_choice.isdigit() and 1 <= int(game_choice) <= len(games):
-                game_name = game_names[int(game_choice)-1]
-                payoff_matrix = games[game_name]['payoffs']
-                
-                episodes = input(f"Episodes to run (default 200): ").strip()
-                episodes = int(episodes) if episodes.isdigit() else 200
-                
-                # Run comparison
-                
-                print(f"\nComparing Algorithm 1 vs Fictitious Play in {game_name}...")
-                results = compare_algorithms(game_name, payoff_matrix, episodes=episodes, pt_params=pt_params)
-                plot_comparison(results, game_name)
-                
-            else:
-                print("Invalid choice, using Prisoner's Dilemma")
-                raise ValueError
-                game_name = 'PrisonersDilemma'
-                payoff_matrix = games[game_name]['payoffs']
-                results = compare_algorithms(game_name, payoff_matrix, episodes=200)
-                plot_comparison(results, game_name)
 
-        elif choice == '6':
+        elif choice == '4':
             # Custom matchup
             print("\nDouble Auction Game")
             print("-"*40)
@@ -515,7 +424,7 @@ def interactive_experiment():
             analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params)
 
 
-        elif choice == '7':
+        elif choice == '5':
             print("\nExiting...")
             break
 
