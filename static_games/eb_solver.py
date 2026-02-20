@@ -28,12 +28,14 @@ def compute_eb_equilibrium(U, pt, p1_type, p2_type):
 
             # We check what the values of staying are across opponent actions, 
             # And then we get the value if we deviate for each action
-            # So, to explain indecing, stay keeps i fixed (where we are in the loop for p1) and hardcodes both p2 actions wrt the probs
-            # THen deviate hardcodes us deviating, and then we operate over the opp actions
+            # So, to explain indexing, stay keeps i fixed (where we are in the loop for p1) and hardcodes both p2 actions wrt the probs
+            # THen deviate hardcodes the current player deviating (1-i) or (1-j), and then we operate over the opp actions
 
-            p1_stay, p1_dev = np.array([U[i, 0, 0], U[i, 1, 0]]), np.array([U[1-i, 0, 0], U[1-i, 1, 0]])
+            p1_stay = np.array([U[i, 0, 0], U[i, 1, 0]]) # i stays fixed, opp actions change
+            p1_dev = np.array([U[1-i, 0, 0], U[1-i, 1, 0]]) # i gets inverted, opp actions change
 
-            p2_stay, p2_dev = np.array([U[0, j, 1], U[1, j, 1]]), np.array([U[0, 1-j, 1], U[1, 1-j, 1]])
+            p2_stay = np.array([U[0, j, 1], U[1, j, 1]]) # j stays fixed, row changes
+            p2_dev = np.array([U[0, 1-j, 1], U[1, 1-j, 1]]) # j gets inverted, row changes
 
             # Then we can compute two lotteries with opp probs fixed and stay/dev measured
             v1_1, v1_2 = util_func(p1_stay, probs1, p1_type), util_func(p1_dev, probs1, p1_type)
@@ -50,6 +52,7 @@ def compute_eb_equilibrium(U, pt, p1_type, p2_type):
 
     # Now, mixed strategies with newtown semismooth:
     # Start with many seeds to explore the space (why not?)
+    # The point is to make sure we aren't convrging to specific basins based on initialization
     starting_points = [0.1, 0.3, 0.5, 0.7, 0.9]
     init_list = itertools.product(starting_points, starting_points) 
 
@@ -83,7 +86,19 @@ def compute_eb_equilibrium(U, pt, p1_type, p2_type):
 
 
 def semismooth_newton(U, z, util_func, p1_type, p2_type, eps=1e-6):
-    # A semismooth newton solver for pt equilibrium
+    '''
+    A semismooth newton solver for cpt equilibrium of beliefs. We are looking for zeros in the F(z) function
+    Here F(z) is the indifference (optimality?) condition val(action 1) = val (action 2), and we are looking for 
+    the point where both player 1 and 2 are indifferent
+    
+    The basic formula is:
+    1) initialize z = p, q
+    2) get initial F(z) (if F(z) = 0, return
+    3) Comute Jacobian (derivative matrix to see how small perturbations in p, q influence F)
+        a) used finite difference, not anything analytical
+    4) solve linear equation x = J^-1 (-F(z)) to find where the function hits 0
+    5) update z with x, repeat if needed (outer loop)
+    '''
     # Step 1) Define starting conditions for each strategy (e.g. (0.5, 0.5))
     p, q = z
     # Step 2) Map the probabilities z = p, q into F space
@@ -113,12 +128,18 @@ def semismooth_newton(U, z, util_func, p1_type, p2_type, eps=1e-6):
    
     # Step 5) clip and return the updated p, q values
     z += delta 
-    z = np.clip(z, 0, 1)
+    z = np.clip(z, 0, 1) # clip to avoid returning a value outside of the prob range
 
     return z, False 
 
 def compute_jacobian(p, q, util_func, U, p1_type, p2_type, eps=1e-6):
-    ''' A numerical computation of the jacobian matrix for the semismooth newton method
+    ''' 
+    A numerical computation of the jacobian matrix for the semismooth newton method
+    Uses finite difference with the indifference equation
+    Do i need to add logic for forward and backward difference near boundaries? 
+    I fugured that if we're near a boundary in the first place its a pure strategy response, 
+    and the value error already catches it, so i think the only risk is pure/mixed equilibria being missed
+    which seems unlikely anyways. 
     '''
     # Check if we are near boundary
     if p + eps > 1 or p - eps < 0 or q + eps > 1 or q - eps < 0:
@@ -145,7 +166,8 @@ def compute_jacobian(p, q, util_func, U, p1_type, p2_type, eps=1e-6):
     F2_minus = util_func(col_a_1, p_2_probs_minus, p2_type) - util_func(col_a_2, p_2_probs_minus, p2_type)
     F2_delta = (F2_plus - F2_minus) / (2 * eps)
 
-    # Add to Jacobian
+    # Add to Jacobian, 0, 0 and 1, 1 are dF1/dp and dF2/dq, and since F1 only depends on q and F2 only 
+    # depends on p, those derivatives will always be zero. 
     J[0, 1], J[1, 0] = F1_delta, F2_delta
 
     return J
