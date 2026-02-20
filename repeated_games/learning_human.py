@@ -6,6 +6,17 @@ from scipy.special import softmax
 class LearningHumanPTAgent:
     """
     Learning Human PT Agent Doesn't know game structure, learns via RL, PT preferences at decision time
+
+    Implements epsilon-greedy Q learning with a joint action Q table Q(s, a_i, a_-i) 
+    which is split so that we can apply beliefs to weigh the opponent action values and then maximize over a regular
+    Q(s, a) table. 
+
+    parameter choices are all pretty standard, values are converging so i haven't spent much time tuning those. 
+
+    There is a tie break logic for when pt values at decision time are very similar (< tau), 
+    in which case we use softmax and randomize. 
+
+    Running belief, reference point scalars are tracked and updated after each step of the environment
     """
 
     def __init__(self, state_size, action_size, opp_action_size, pt_params, agent_id=0, ref_setting='Fixed', lambda_ref=0.95):
