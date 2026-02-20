@@ -3,7 +3,11 @@ import random
 from scipy.special import Softmax
 
 class AIAgent:
-    """Standard RL agent without PT"""
+    """
+    Standard RL agent without PT
+    Implements vanilla epsilon greedy q learning, no PT transformations, no beliefs, no reference points
+    Should be super straightforward
+    """
 
     def __init__(self, state_size, action_size, opp_action_size, agent_id=0):
         self.state_size = state_size
