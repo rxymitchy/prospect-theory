@@ -159,6 +159,8 @@ def semismooth_newton(U, z, util_func, p1_type, p2_type, eps=1e-6):
     Here F(z) is the residual of the gradient ascent using the derivative of the value function provided.
     Formally: F = p - clip(p + tau * derivative), where p is our prob and tau is a step size paramete.
     We are looking for the point where the derivative is 0 (external scans prevent saddle points and minima)
+    but we use the residual as a fixed point condition to hedge against boundaries (the LLMs insist on this, 
+    personally the derivative seems fine to me but whatever it still makes sense). 
     
     The basic formula is:
     1) initialize z = p, q
