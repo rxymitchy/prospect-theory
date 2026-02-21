@@ -15,6 +15,18 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
                  exploration_decay=0.995, verbose=True, game_name=''):
     """
     Train two agents against each other
+
+    This loop steps through the environment and tracks/updates:
+    - rewards
+    - actions
+    - beliefs
+    - reference points
+    - q values
+    - states
+    - opp PT functions (AH tracks this)
+
+    Importantly, it is EPISODIC and updates gamma **EVERY EPISODE**, so please let me know if it should be continuous
+    When I looked on the internet, episodic seemed to be more tractable for RL, but obviously I could be wrong. 
     """
 
     results = {
@@ -117,7 +129,7 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
                 
 
             if isinstance(agent2, LearningHumanPTAgent):
-                # Update
+                # Update LH variables
                 agent2.belief_update(state, action1)
                 agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
                 agent2.q_value_update(state, next_state, action2, action1, reward2, done)
@@ -129,7 +141,7 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
 
                 # Tracking
                 if game_name == 'Double Auction Game':
-                    if global_step % log_every == 0:
+                    if global_step % log_every == 0: # trying to control memory
                         results['q_values2'].append(q_vals)
                         results['ref_points2'].append(agent2.ref_point)
                 else:
@@ -154,7 +166,7 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
                 del q_vals
 
             else: # Aware Human
-                agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1)
+                agent2.ref_update(payoff=reward2, state=state, opp_payoff=reward1) # its pt function gets updated here
                 results['ref_points2'].append(agent2.ref_point)
                 # Pass agent 1 pt func to agent2
                 if not isinstance(agent1, AIAgent):
@@ -175,8 +187,10 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
             episode_actions1.append(action1)
             episode_actions2.append(action2)
 
+            # For action heat map
             joint_counts[action1, action2] += 1
 
+            # Step through
             state = next_state
 
             if done:
@@ -218,7 +232,16 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
     return results
 
 def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting='Fixed', pt_params={}, ref_point=0):
-    """Run all agent matchups for a game"""
+    """
+    Run all agent matchups for a game
+    This is pretty much deprecated, I intend to run via custom game or I will edit this.
+    
+    This is just a wrapper for train agents, but since it spits out results back to back to back and the level of 
+    control we need is high, I'm just happy to use the custom matchup setting and specify hyperparameters with each run. 
+
+    Of course, if that changes I can always update this, but the code in here isn't really modeling choices its just
+    regular initialization and data collecting, review probably doesn't need to focus here. 
+    """
 
     print("\n" + "="*80)
     print(f"COMPLETE EXPERIMENT: {game_name}")
