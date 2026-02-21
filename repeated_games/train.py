@@ -175,7 +175,7 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
 
             # We needed agent 2 to be fully calculated before passing the agent 2 pt values to agent 1
             if isinstance(agent1, AwareHumanPTAgent):
-                if not isinstance(agent1, AIAgent):
+                if not isinstance(agent2, AIAgent):
                     agent1.opp_pt = agent2.pt
 
 
@@ -198,7 +198,7 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
                 break
 
         # Store episode results
-        print("out of loop")
+        print(f"\rEpisode {episode} of {episodes}", end='')
         steps = env.horizon
         avg_reward1 = episode_rewards1 / steps
         avg_reward2 = episode_rewards2 / steps
@@ -257,11 +257,17 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
     # Define all matchups to test
     matchups = [
         ('Aware_PT', 'AI'),
+        ('AI', 'Aware_PT'),
+
         ('LH', 'AI'),
+        ('AI', 'LH'),
+
         ('Aware_PT', 'LH'),
-        ('Aware_PT', 'Aware_PT'), 
+        ('LH', 'Aware_PT'),
+
+        ('Aware_PT', 'Aware_PT'), # Baseline
         ('LH', 'LH'),
-        ('AI', 'AI')  # Baseline
+        ('AI', 'AI')  
     ]
 
     all_results = {}
@@ -316,7 +322,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
 
         # Train the matchup
         print(f"Training {episodes} episodes...")
-        results = train_agents(agent1, agent2, agent1_type, agent2_type, env, episodes=episodes, verbose=True, game_name=game_name)
+        results = train_agents(agent1, agent2, env, {}, episodes=episodes, verbose=True, game_name=game_name)
 
         # Store results
         matchup_key = f"{agent1_type}_vs_{agent2_type}"

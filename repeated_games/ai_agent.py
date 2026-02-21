@@ -1,4 +1,5 @@
-import torch
+import copy
+import numpy as np
 import random
 from scipy.special import softmax
 
@@ -21,7 +22,7 @@ class AIAgent:
         # Add an entry for each state 
         # And initialize q values as Q(s, a), no opponent conditioning because no beliefs for AI
         for state in range(self.state_size):
-            self.q_values[state] = torch.zeros(self.action_size) 
+            self.q_values[state] = np.zeros(self.action_size) 
 
         # state counter
         self.state_visit_counter = dict()
@@ -45,7 +46,7 @@ class AIAgent:
 
         # Get optimal action from q values for this state
         q_values = self.q_values[state]
-        optimal_action = torch.argmax(q_values).item() 
+        optimal_action = np.argmax(q_values).item() 
 
         # Get the second best value for pathology detection
         # Copy to prevent editing original list
@@ -103,7 +104,7 @@ class AIAgent:
     # Deprecated Code for the Q-Value convergence metric I was fixated on
     # keeping it in because, im attached
     def get_q_values(self):
-        q_values = torch.zeros(self.action_size, self.opp_action_size)
+        q_values = np.zeros((self.action_size, self.opp_action_size))
 
         total_visits = sum(self.state_visit_counter.values())
 
@@ -118,12 +119,6 @@ class AIAgent:
 
             weight = num_visits / total_visits
 
-            q_val = torch.as_tensor(q_val, dtype=torch.float32)
-
-            q_val = q_val.unsqueeze(1).repeat(1, self.opp_action_size)
-
             q_values += weight * q_val
-
-        q_values = q_values.numpy()
 
         return q_values

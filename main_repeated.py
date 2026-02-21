@@ -40,7 +40,7 @@ def interactive_experiment():
         print("1. Run complete experiment for a specific game")
         print("2. Compare all games (summary)")
         print("3. Run custom matchup")
-        print("4. Run Double Auction Game (Still Under Construction)")
+        print("4. Run Double Auction Game (Heavy Memory)")
         print("5. Exit")
 
         choice = input("\nEnter choice (1-7): ").strip()
