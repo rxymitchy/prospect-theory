@@ -7,7 +7,11 @@ from matplotlib.ticker import FuncFormatter
 from .utils import smooth
 
 def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params):
-    """Comprehensive analysis of a matchup"""
+    """
+    I am not going through in line, and i went a little in depth on the read me. 
+    I feel like this is pretty straightforward, but if its not please just send me an email,
+    I'll be quick to respond
+    """
 
     fig = plt.figure(figsize=(15, 10))
 
