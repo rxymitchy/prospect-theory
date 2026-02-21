@@ -3,7 +3,7 @@ from .aware_human import AwareHumanPTAgent
 from .learning_human import LearningHumanPTAgent
 from .ai_agent import AIAgent
 from .game_env import RepeatedGameEnv 
-from .utils import get_all_games, best_responders
+from .utils import get_all_games
 from .analyze import analyze_matchup
 import numpy as np
 import pandas as pd
@@ -46,7 +46,7 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
     joint_counts = np.zeros((agent1.action_size,agent2.action_size), dtype=int)
 
     start_time = time.time()
-    last_time = 0
+    last_time = start_time
 
     log_every = 100
     global_step = 0
@@ -88,6 +88,7 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
                 agent1.q_value_update(state, next_state, action1, action2, reward1, done)
 
                 # Get q vals, normalize by multiplying by 1 - gamma to remove future discounting
+                # This is for the q values -> real payoffs convergence metric
                 q_vals = agent1.get_q_values()
                 q_vals = np.asarray(q_vals, dtype=np.float32)  
                 q_vals = (1 - agent1.gamma) * q_vals

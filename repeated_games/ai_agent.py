@@ -1,6 +1,6 @@
 import torch
 import random
-from scipy.special import Softmax
+from scipy.special import softmax
 
 class AIAgent:
     """
@@ -36,7 +36,6 @@ class AIAgent:
         # tiebreaker variables
         self.tau = 0.1 # threshold
         self.temp = 1.3 # softmax temp, high to encourage randomness
-        self.softmax = Softmax(axis=0)
         self.softmax_counter = 0
 
     def act(self, state):
@@ -64,7 +63,7 @@ class AIAgent:
             self.softmax_counter += 1
 
             vals = q_values - q_values.max() # Normalize to prevent explosions
-            probs = self.softmax(vals / self.temp)
+            probs = softmax(vals / self.temp, axis=0)
             action = np.random.choice(len(probs), p=probs) # sample
 
             return action

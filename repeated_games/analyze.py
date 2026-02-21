@@ -15,7 +15,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     fig = plt.figure(figsize=(15, 10))
 
-    # 1. Learning curves
+    # 1. Avg rewards
     ax1 = plt.subplot(3, 3, 1)
     window = 20
     smoothed1 = np.convolve(results['avg_rewards1'], np.ones(window)/window, mode='valid')
@@ -80,7 +80,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
 
     ax3.set_title("Joint Action Heatmap")
 
-    # 4. Strategy evolution (for aware PT)
+    # 4. Q value convergence 
     ax4 = plt.subplot(3, 3, 4)
     if len(results['q_values1']) > 0:
         q_values1 = np.stack(results['q_values1'])
@@ -122,7 +122,7 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax5.legend()
     ax5.grid(True, alpha=0.3)
 
-    # 6. Reward distribution
+    # 6. Learning convergence (how much are q values changing)
     ax6 = plt.subplot(3, 3, 6)
     if game_name != 'Double Auction Game':
         k = 100

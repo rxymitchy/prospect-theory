@@ -101,7 +101,8 @@ class ProspectTheory:
         # difference
         pi = w_head - w_prev_head
 
-        return float(np.sum(pi * v_x))
+        # Rewritten with .dot for speed
+        return float(pi.dot(v_x))
 
     def expected_pt_value(self, outcomes, probabilities):
         outcomes, probabilities = np.array(outcomes), np.array(probabilities,dtype=float)

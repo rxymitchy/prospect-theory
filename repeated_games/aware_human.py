@@ -162,12 +162,12 @@ class AwareHumanPTAgent:
         # Here we dont need to maximize over Q values, we have the payoff matrix
         # We just select the agent id from the 3rd dimension of the payoff table
         # for reference the payoff tables are structured like this:
-        '''
-        np.array([
-                [[-1, -1], [-3, 0]],   # C/C, C/D
-                [[0, -3], [-2, -2]]    # D/C, D/D
-            ])
-        '''
+        #
+        # np.array([
+        #        [[-1, -1], [-3, 0]],   # C/C, C/D
+        #        [[0, -3], [-2, -2]]    # D/C, D/D
+        #    ])
+        #
         # We take the pt transformation just like with LH
         elif self.ref_update_mode == 'Q':
             payoffs = self.payoff_matrix[:,:,self.agent_id].flatten()

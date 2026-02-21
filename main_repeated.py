@@ -8,7 +8,6 @@ warnings.filterwarnings('ignore')
 import pandas as pd
 from repeated_games.train import run_complete_experiment, train_agents 
 from repeated_games.analyze import compare_all_results
-from repeated_games.baseline import compare_algorithms, plot_comparison
 
 from repeated_games import (
     RepeatedGameEnv,
@@ -59,7 +58,8 @@ def interactive_experiment():
         viable_options = ['Fixed', 'EMA', 'Q', 'EMAOR']
 
         while ref_setting not in viable_options:        
-            ref_setting = input("\nEnter choice (type exactly as written, defaults to fixed): 'Fixed', 'EMA', 'Q', 'EMAOR': ").strip()
+            ref_setting = int(input("\nEnter choice (type the digit): ").strip())
+            ref_setting = viable_options[ref_setting-1]
 
             if ref_setting not in viable_options:
                 print("Failed, please try again.")
@@ -95,7 +95,7 @@ def interactive_experiment():
 
             pt_params = {'lambd': 2.25, 'alpha': 0.88, 'gamma': gamma, 'r': r, 'delta':delta}
 
-        elif choice == '1':
+        if choice == '1':
             # Complete experiment for specific game
             print("\nAvailable games:")
             for i, (name, data) in enumerate(games.items(), 1):
