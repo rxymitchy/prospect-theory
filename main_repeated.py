@@ -46,6 +46,12 @@ def interactive_experiment():
         choice = input("\nEnter choice (1-5): ").strip()
 
         print("\n" + "="*80)
+        print("Set Number of Experiment Runs")
+        print("="*80)
+
+        num_experiments = int(input("\nEnter Number of Experiment Runs (Rec. For Prod Run: 30): ").strip())
+
+        print("\n" + "="*80)
         print("Set State History (Recommended: Choose 0 or 2)")
         print("="*80)
         state_history = int(input("\nEnter Choice (< 3): ").strip())
@@ -152,9 +158,7 @@ def interactive_experiment():
                 agent1_type = "Learning_PT"
                 agent2_type = "AI"
  
-                br_dict = {'agent1_type': agent1_type, 'agent2_type': agent2_type, 'pt_params': pt_params, 'ref_setting': ref_setting, 'ref_lambda': ref_lambda}
-
-                results = train_agents(agent1, agent2, env, br_dict, episodes=100, verbose=False)
+                results = train_agents(agent1, agent2, env, episodes=100, verbose=False)
 
                 if results['avg_rewards1'] and len(results['avg_rewards1']) >= 20:
                     final_avg1 = np.mean(results['avg_rewards1'][-20:])
@@ -281,9 +285,10 @@ def interactive_experiment():
 
 
             # Train
-            br_dict = {'agent1_type': agent1_type, 'agent2_type': agent2_type, 'pt_params': pt_params, 'ref_setting': ref_setting, 'ref_lambda': ref_lambda}
-
-            results = train_agents(agent1, agent2, env, br_dict, episodes=episodes, verbose=True)
+            results = dict() 
+            for idx in range(num_experiments):
+                 print(f'Run {idx + 1} / {num_experiments}')
+                 results[f"{idx}"] = train_agents(agent1, agent2, env, episodes=episodes, verbose=True)
 
             # Analyze
             games_dict = get_all_games()
@@ -401,8 +406,7 @@ def interactive_experiment():
 
 
             # Train
-            br_dict = {'agent1_type': agent1_type, 'agent2_type': agent2_type, 'pt_params': pt_params, 'ref_setting': ref_setting, 'ref_lambda': ref_lambda}
-            results = train_agents(agent1, agent2, env, br_dict, episodes=episodes, verbose=True, game_name=game_name)
+            results = train_agents(agent1, agent2, env, episodes=episodes, verbose=True, game_name=game_name)
  
             # Analyze
             print('Agent 1 Softmax triggers: ', agent1.softmax_counter)

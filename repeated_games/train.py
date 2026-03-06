@@ -11,7 +11,7 @@ import time
 
 from matplotlib.ticker import FuncFormatter
 
-def train_agents(agent1, agent2, env, br_dict, episodes=500,
+def train_agents(agent1, agent2, env, episodes=500,
                  exploration_decay=0.995, verbose=True, game_name=''):
     """
     Train two agents against each other
