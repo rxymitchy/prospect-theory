@@ -92,11 +92,15 @@ class AIAgent:
         max_next_q_val = self.q_values[next_state].max()
 
         # get rid of future trajectories when reaching end of episode
+        done = False
         if done is True:
             max_next_q_val = 0
 
         # TD update
         target = reward + self.gamma * max_next_q_val
+
+        q_vals = self.get_q_values()
+
 
         # COnvex combination style, just a stylistic difference not a numeric one
         self.q_values[state][action] = (1 - self.alpha) * curr_q_val + self.alpha * target  

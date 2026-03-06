@@ -228,11 +228,12 @@ def train_agents(agent1, agent2, env, br_dict, episodes=500,
         last_time = time.time()
 
     print("joint actions: ", joint_counts)
+    print("State History: ", env.state_history)
     results['joint_actions'] = joint_counts
 
     return results
 
-def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting='Fixed', pt_params={}, ref_point=0):
+def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting='Fixed', pt_params={}, ref_point=0, state_history=2):
     """
     Run all agent matchups for a game
     This is pretty much deprecated, I intend to run via custom game or I will edit this.
@@ -251,8 +252,6 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
     # Reference point setting
     # Options = Fixed, EMA, Q, 'EMAOR': EMA of Opp rewards
     ref_lambda = 0.9
-
-    state_history_len = 2
 
     # Define all matchups to test
     matchups = [
@@ -278,7 +277,7 @@ def run_complete_experiment(game_name, payoff_matrix, episodes=300, ref_setting=
         print('='*70)
 
         # Reset environment
-        env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=state_history_len)
+        env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=state_history)
 
         # Create agents based on type
         ## 2x2 games only

@@ -81,46 +81,41 @@ def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name
     ax3.set_title("Joint Action Heatmap")
 
     # 4. Q value convergence 
+    # 4. Q value convergence - Player 1
     ax4 = plt.subplot(3, 3, 4)
     if len(results['q_values1']) > 0:
         q_values1 = np.stack(results['q_values1'])
-        print(f'unique q values agent 1: {np.unique(q_values1).size}, q vals 1 shape: {q_values1.shape}')
-        error1 = np.mean(np.abs(q_values1 - payoff_matrix[:, :, agent1.agent_id]), axis=(1,2))
-        if game_name == 'Double Auction Game':
-            print(f"Error 1 shape: {error1.shape}, error 1 num unique: {np.unique(error1).size}, error 1 max: {error1.max()}, error 1 min: {error1.min()}")
-        ax4.plot(error1, label=f'{agent1_type}', linewidth=1)
+        ax4.plot(q_values1[:, 0, 0], label='Action 0', linewidth=1)
+        ax4.plot(q_values1[:, 1, 0], label='Action 1', linewidth=1)
 
-    else:
-        q_values1 = []
-        error1 = []
-
-    if len(results['q_values2']) > 0:
-        q_values2 = np.stack(results['q_values2'])
-        error2 = np.mean(np.abs(q_values2 - payoff_matrix[:, :, agent2.agent_id]), axis=(1,2))
-        if game_name == 'Double Auction Game':
-            print(f"Error 2 shape: {error2.shape}, error 2 num unique: {np.unique(error2).size}, error 2 max: {error2.max()}, error 2 min: {error2.min()}")
-        ax4.plot(error2, label=f'{agent2_type}', linewidth=1)
-    else:
-        q_values2 = []
-        error2 = []
+        opp_freq = joint_actions.sum(axis=0) / joint_actions.sum()
+        expected_payoff_a0 = payoff_matrix[0, :, 0] @ opp_freq
+        expected_payoff_a1 = payoff_matrix[1, :, 0] @ opp_freq
+        ax4.axhline(expected_payoff_a0, linestyle="--", color='gray', alpha=0.5, label="Expected R(a0)")
+        ax4.axhline(expected_payoff_a1, linestyle="--", color='black', alpha=0.5, label="Expected R(a1)")
 
     ax4.set_xlabel('Step')
-    ax4.set_ylabel('Mean Absolute Error')
-    ax4.set_title('Mean Absolute Error (|Q-R|)')
+    ax4.set_ylabel('Normalized Q-value')
+    ax4.set_title(f'{agent1_type} Q-Values')
     ax4.legend()
 
-    # 5. Cumulative rewards
+    # 5. Q value convergence - Player 2
     ax5 = plt.subplot(3, 3, 5)
-    cumulative1 = np.cumsum(results['rewards1'])
-    cumulative2 = np.cumsum(results['rewards2'])
+    if len(results['q_values2']) > 0:
+        q_values2 = np.stack(results['q_values2'])
+        ax5.plot(q_values2[:, 0, 0], label='Action 0', linewidth=1)
+        ax5.plot(q_values2[:, 1, 0], label='Action 1', linewidth=1)
 
-    ax5.plot(cumulative1, label=f'{agent1_type}', linewidth=2)
-    ax5.plot(cumulative2, label=f'{agent2_type}', linewidth=2)
-    ax5.set_xlabel('Episode')
-    ax5.set_ylabel('Cumulative Reward')
-    ax5.set_title('Cumulative Rewards')
+        opp_freq = joint_actions.sum(axis=1) / joint_actions.sum()
+        expected_payoff_a0 = payoff_matrix[:, 0, 1] @ opp_freq
+        expected_payoff_a1 = payoff_matrix[:, 1, 1] @ opp_freq
+        ax5.axhline(expected_payoff_a0, linestyle="--", color='gray', alpha=0.5, label="Expected R(a0)")
+        ax5.axhline(expected_payoff_a1, linestyle="--", color='black', alpha=0.5, label="Expected R(a1)")
+
+    ax5.set_xlabel('Step')
+    ax5.set_ylabel('Normalized Q-value')
+    ax5.set_title(f'{agent2_type} Q-Values')
     ax5.legend()
-    ax5.grid(True, alpha=0.3)
 
     # 6. Learning convergence (how much are q values changing)
     ax6 = plt.subplot(3, 3, 6)

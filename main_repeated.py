@@ -43,7 +43,12 @@ def interactive_experiment():
         print("4. Run Double Auction Game (Heavy Memory)")
         print("5. Exit")
 
-        choice = input("\nEnter choice (1-7): ").strip()
+        choice = input("\nEnter choice (1-5): ").strip()
+
+        print("\n" + "="*80)
+        print("Set State History (Recommended: Choose 0 or 2)")
+        print("="*80)
+        state_history = int(input("\nEnter Choice (< 3): ").strip())
 
         print("\n" + "="*80)
         print("SET REFERENCE POINT SETTING")
@@ -112,7 +117,7 @@ def interactive_experiment():
                 episodes = int(episodes) if episodes.isdigit() else 200
 
                 print(f"\nStarting complete experiment for {game_name}...")
-                all_results = run_complete_experiment(game_name, payoff_matrix, episodes=episodes, ref_setting=ref_setting, pt_params=pt_params, ref_point=r)
+                all_results = run_complete_experiment(game_name, payoff_matrix, episodes=episodes, ref_setting=ref_setting, pt_params=pt_params, ref_point=r, state_history=state_history)
 
                 # Compare results
                 compare_all_results(all_results, game_name)
@@ -138,7 +143,7 @@ def interactive_experiment():
                 payoff_matrix = games[game_name]['payoffs']
 
                 # Run quick version
-                env = RepeatedGameEnv(payoff_matrix, horizon=50, state_history=2)
+                env = RepeatedGameEnv(payoff_matrix, horizon=50, state_history=state_history)
 
                 # Test one key matchup
                 agent1 = LearningHumanPTAgent(env.state_size, action_size, action_size, pt_params, agent_id=0, ref_setting=ref_setting)
@@ -235,7 +240,7 @@ def interactive_experiment():
             # Run custom matchup
             print(f"\nRunning {agent1_type} vs {agent2_type} in {game_name}...")
 
-            env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=2)
+            env = RepeatedGameEnv(payoff_matrix, horizon=100, state_history=state_history)
 
             # Reference point setting
             # Options = Fixed, EMA, Q, EMAOR
@@ -354,7 +359,7 @@ def interactive_experiment():
             # Run custom matchup
             print(f"\nRunning {agent1_type} vs {agent2_type} in {game_name}...")
 
-            env = DoubleAuction(k=price_range, valuation=valuation, cost=cost, horizon=100, state_history=2)
+            env = DoubleAuction(k=price_range, valuation=valuation, cost=cost, horizon=100, state_history=state_history)
             payoff_matrix = env.build_payoff_matrix()
 
             # Reference point setting

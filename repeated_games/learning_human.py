@@ -232,10 +232,6 @@ class LearningHumanPTAgent:
         # Get stored value (state, joint action value) for bootstrap 
         q_value = self.q_values[state][action][opp_action]
 
-        # terminal state, no future returns
-        if done:
-            optimal_next_q_value = 0.0
-
         # Calculate delta in untransformed reward space
         delta = reward + self.gamma * optimal_next_q_value - q_value 
         # Update q values
