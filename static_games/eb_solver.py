@@ -31,7 +31,7 @@ def compute_eb_equilibrium(U, pt, p1_type, p2_type):
     x_vals = np.linspace(0, 1, 201)
 
     # F over p with q fixed
-    y_vals_p = np.array([compute_F(np.array([xi, 0.5]), U, is_pt_p1, is_pt_p2, pt, sort_orders) for xi in x_vals])
+    y_vals_p = np.array([compute_F(np.array([xi, 0.0]), U, is_pt_p1, is_pt_p2, pt, sort_orders) for xi in x_vals])
     ax1.plot(x_vals, y_vals_p[:, 0], label='Player 1')
     ax1.plot(x_vals, y_vals_p[:, 1], label='Player 2')
     ax1.axhline(0, color='k', linestyle='--')
@@ -41,7 +41,7 @@ def compute_eb_equilibrium(U, pt, p1_type, p2_type):
     ax1.legend()
 
     # F over q with p fixed
-    y_vals_q = np.array([compute_F(np.array([0.5, xi]), U, is_pt_p1, is_pt_p2, pt, sort_orders) for xi in x_vals])
+    y_vals_q = np.array([compute_F(np.array([0.0, xi]), U, is_pt_p1, is_pt_p2, pt, sort_orders) for xi in x_vals])
     ax2.plot(x_vals, y_vals_q[:, 0], label='Player 1')
     ax2.plot(x_vals, y_vals_q[:, 1], label='Player 2')
     ax2.axhline(0, color='k', linestyle='--')
@@ -163,6 +163,13 @@ def newton_step(z, U, step_num, key, is_pt_p1, is_pt_p2, pt, sort_orders, eps=1e
 
 
 @functools.partial(jax.jit, static_argnums=(2,3,4))
+# This should be the first order derivative, not the indifference equation
+# the jacobian is second order
+# We need to solve for when both of their derivatives are 0. 
+# This should be wrt P1/p, P2/q, they are both maximizing, find derivative, set it to 0, find when thats true
+# Look up non-isolated minia, that is the problem EB convex hull solves. 
+# SO you can get a strange looking set
+# The complication here is that we are trying to find ALL of the solutions. The set 
 def compute_F(z, U, is_pt_p1, is_pt_p2, pt, sort_orders):
     U = np.array(U)
     p, q = z

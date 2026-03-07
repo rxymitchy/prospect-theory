@@ -21,8 +21,8 @@ def get_all_games():
         },
         'BattleOfSexes': {
             'payoffs': np.array([
-                [[2, 1], [0, 0]],    # Opera/Opera, Opera/Football
-                [[0, 0], [1, 2]]     # Football/Opera, Football/Football
+                [[3, 2], [0, 0]],    # Opera/Opera, Opera/Football
+                [[0, 0], [2, 3]]     # Football/Opera, Football/Football
             ]),
             'description': 'Battle of the Sexes',
             'actions': ['Opera', 'Football']

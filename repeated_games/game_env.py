@@ -3,7 +3,7 @@ import numpy as np
 class RepeatedGameEnv:
     """Environment for repeated 2x2 games"""
 
-    def __init__(self, payoff_matrix, horizon=100, state_history=3):
+    def __init__(self, payoff_matrix, horizon=100, state_history=2, bins=[]):
         self.payoff_matrix = payoff_matrix
         self.horizon = horizon
         self.state_history = state_history
@@ -29,9 +29,23 @@ class RepeatedGameEnv:
             else:
                 pair = 0  # padding for missing history
             state += pair * (4 ** i)
+
+        # INCOMPLETE CODE COMING BACK
+        '''
+        p_ref_1, p_ref_2 = 1, 1
+
+        payoff_max, payoff_min = self.payoff_matrix.max(), self.payoff_matrix.min()
+        if ref_1 is not None:
+            p_ref_1 = (ref_1 - payoff_min) / (payoff_max - payoff_min)
+
+        if ref_2 is not None:
+            p_ref_2 = (ref_2 - payoff_min) / (payoff_max - payoff_min)
+
+        state1 = state * p_ref_1
+        '''
         return int(state)
 
-    def step(self, action1, action2):
+    def step(self, action1, action2, ref_1=None, ref_2=None):
         reward1 = float(self.payoff_matrix[action1, action2, 0])
         reward2 = float(self.payoff_matrix[action1, action2, 1])
 
@@ -39,5 +53,6 @@ class RepeatedGameEnv:
         self.round += 1
 
         done = self.round >= self.horizon
-        return self._get_state(), reward1, reward2, done, {}
+
+        return self._get_state(ref_1, ref_2), reward1, reward2, done, {}
 
