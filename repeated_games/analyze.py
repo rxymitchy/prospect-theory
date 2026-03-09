@@ -8,7 +8,7 @@ from .utils import smooth
 import os
 from pathlib import Path
 
-DIR_PATH = "/Users/dylanwaldner/Projects/RLNash/Experiments"
+DIR_PATH = "/Users/dylanwaldner/Projects/RLNash/Experiments2"
 
 def analyze_matchup(results, agent1, agent2, agent1_type, agent2_type, game_name, games_dict, payoff_matrix, pt_params, ref_type, env):
     """

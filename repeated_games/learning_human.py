@@ -289,7 +289,7 @@ class LearningHumanPTAgent:
         q_value = self.q_values[state][action][opp_action]
 
         if self.state_size == 1:
-            optimal_next_q_val = 0
+            optimal_next_q_value = 0
 
         # Calculate delta in untransformed reward space
         delta = reward - self.avg_rew + optimal_next_q_value - q_value 
